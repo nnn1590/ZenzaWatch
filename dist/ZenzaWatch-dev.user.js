@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name           ZenzaWatch DEV版
+// @name           ZenzaWatch DEV版 fix playlist
 // @namespace      https://github.com/segabito/
 // @description    ZenzaWatchの開発 先行バージョン
 // @match          *://www.nicovideo.jp/*
@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2
+// @version        2.6.2-fix-playlist.1
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2';
+    var VER = '2.6.2-fix-playlist.1';
     const ENV = 'DEV';
 
 
@@ -2363,67 +2363,28 @@ const nicoUtil = {
 	parseWatchQuery: query => {
 		try {
 			const result = textUtil.parseQuery(query);
-			const playlist = JSON.parse(textUtil.decodeBase64(result.playlist) || '{}');
+			const playlist = JSON.parse(result.playlist && textUtil.decodeBase64(result.playlist) || '{}');
 			const context = playlist.context;
-			if (playlist.type === 'search') {
-				if (context.hasOwnProperty('tag')) {
-					result.playlist_type = 'tag';
-					result.tag = context.tag;
-				} else {
-					result.playlist_type = 'search';
-					result.keyword = context.keyword;
+			result.playlist = { type: playlist.type };
+			switch (playlist.type) {
+				case 'series':
+					Object.assign(result.playlist, { id: context.seriesId });
+					break;
+				case 'user-uploaded': {
+					const { userId, ...options } = context;
+					Object.assign(result.playlist, { id: userId, options });
+					break;
 				}
-				result.order = context.sortOrder === 'asc' ? 'a' : 'd';
-				result.sort = ((sortKey) => {
-					switch (sortKey) {
-						case 'hotLikeAndMylist': return 'h';
-						case 'personalized': return 'p';
-						case 'registeredAt': return 'f';
-						case 'viewCount': return 'v';
-						case 'mylistCount': return 'm';
-						case 'lastCommentTime': return 'n';
-						case 'commentCount': return 'r';
-						case 'duration': return 'l';
-					}
-				})(context.sortKey);
-				const F_RANGE = {
-					U_1H: 4,
-					U_24H: 1,
-					U_1W: 2,
-					U_30D: 3
-				};
-				const L_RANGE = {
-					U_5MIN: 1,
-					O_20MIN: 2
-				};
-				if (context.minRegisteredAt) {
-					result.f_range = (time => {
-						const now = Date.now();
-						if (time > now - 1000 * 60 * 60 * 24 * 30) {
-							return F_RANGE.U_30D;
-						} else if (time > now - 1000 * 60 * 60 * 24 * 7) {
-							return F_RANGE.U_1W;
-						} else if (time > now - 1000 * 60 * 60 * 24) {
-							return F_RANGE.U_24H;
-						} else if (time > now - 1000 * 60 * 60) {
-							return F_RANGE.U_1H;
-						}
-					})(new Date(context.minRegisteredAt).getTime());
+				case 'mylist': {
+					const { mylistId, ...options } = context;
+					Object.assign(result.playlist, { id: mylistId, options });
+					break;
 				}
-				if (context.maxDuration || context.minDuration) {
-					result.l_range = context.maxDuration === 300 ? L_RANGE.U_5MIN : L_RANGE.O_20MIN;
-				}
-				return result;
+				case 'watchlater':
+				case 'search':
+					Object.assign(result.playlist, { options: context });
+					break;
 			}
-			if (playlist.type === 'mylist') {
-				result.playlist_type = 'mylist';
-				result.group_id = context.mylistId;
-			} else if (playlist.type === 'watchlater') {
-				result.playlist_type = 'deflist';
-				result.group_id = 'deflist';
-			}
-			result.order = context.sortOrder;
-			result.sort = context.sortKey;
 			return result;
 		} catch(e) {
 			return {};
@@ -6780,6 +6741,88 @@ const ThumbInfoLoader = (() => {
 	};
 	return {initGate, load};
 })();
+const PlaylistApiLoader = (() => {
+	const CACHE_EXPIRE_TIME = 5 * 60 * 1000;
+	let cacheStorage = null;
+	class PlaylistApiLoader {
+		constructor() {
+			if (!cacheStorage) {
+				cacheStorage = new CacheStorage(sessionStorage);
+			}
+		}
+		async load({ type, id, options }, { frontendId = 6, frontendVersion = 0 } = {}) {
+			const { url, cacheKey } = ((type) => {
+				switch (type) {
+					case 'series':
+						return this._buildSeriesURL(id);
+					case 'user-uploaded':
+						return this._buildUserUploadedURL(id, options);
+					case 'mylist':
+						return this._buildMylistURL(id, options);
+					case 'watchlater':
+						return this._buildWatchlaterURL(options);
+					case 'search':
+						return this._buildSearchURL(options);
+					default:
+						return {};
+				}
+			})(type);
+			if (url === undefined || cacheKey === undefined) {
+				throw new Error(`プレイリストの取得失敗(3) ${type}`);
+			}
+			const cacheData = cacheStorage.getItem(cacheKey);
+			if (cacheData) {
+				return cacheData;
+			}
+			const result = await netUtil.fetch(url, {
+				headers: { 'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion },
+				credentials: 'include',
+			}).then(r => r.json())
+				.catch(e => { throw new Error(`プレイリストの取得失敗(2) ${type}`, e); });
+			if (result.meta.status !== 200 || !result.data.items) {
+				throw new Error(`プレイリストの取得失敗(1) ${type}`, result);
+			}
+			const data = result.data.items;
+			cacheStorage.setItem(cacheKey, data, CACHE_EXPIRE_TIME);
+			return data;
+		}
+		_buildSeriesURL(seriesId) {
+			return {
+				url: `https://nvapi.nicovideo.jp/v1/playlist/series/${seriesId}`,
+				cacheKey: `playlist; series: ${seriesId}`,
+			};
+		}
+		_buildUserUploadedURL(userId, options = {}) {
+			const query = new URLSearchParams(Object.assign({ sortOrder: 'asc', sortKey: 'registeredAt' }, options));
+			return {
+				url: `https://nvapi.nicovideo.jp/v1/playlist/user-uploaded/${userId}?${query.toString()}`,
+				cacheKey: `playlist; user-uploaded: ${userId}, orderBy: ${query.get('sortKey')} ${query.get('sortOrder')}`,
+			};
+		}
+		_buildMylistURL(mylistId, options = {}) {
+			const query = new URLSearchParams(Object.assign({ sortOrder: 'asc', sortKey: 'registeredAt' }, options));
+			return {
+				url: `https://nvapi.nicovideo.jp/v1/playlist/mylist/${mylistId}?${query.toString()}`,
+				cacheKey: `playlist; mylist: ${mylistId}, orderBy: ${query.get('sortKey')} ${query.get('sortOrder')}`,
+			};
+		}
+		_buildWatchlaterURL(options = {}) {
+			const query = new URLSearchParams(Object.assign({ sortOrder: 'asc', sortKey: 'registeredAt' }, options));
+			return {
+				url: `https://nvapi.nicovideo.jp/v1/playlist/watch-later?${query.toString()}`,
+				cacheKey: `playlist; watchlater, orderBy: ${query.get('sortKey')} ${query.get('sortOrder')}`,
+			};
+		}
+		_buildSearchURL(options = {}) {
+			const query = new URLSearchParams(Object.assign({ sortOrder: 'desc', sortKey: 'registeredAt' }, options));
+			return {
+				url: `https://nvapi.nicovideo.jp/v1/playlist/search?${query.toString()}`,
+				cacheKey: `playlist; search, query: ${query.toString()}`,
+			};
+		}
+	}
+	return new PlaylistApiLoader();
+})();
 const MylistApiLoader = (() => {
 	const CACHE_EXPIRE_TIME = 5 * 60 * 1000;
 	const TOKEN_EXPIRE_TIME = 59 * 60 * 1000;
@@ -6835,11 +6878,57 @@ const MylistApiLoader = (() => {
 				}
 				return token;
 		}
-		async getDeflistItems(options = {}, frontendId = 6, frontendVersion = 0) {
-			options.order = options.order == null ? 'asc' : options.order;
-			options.sort = options.sort == null ? 'registeredAt' : options.sort;
-			const url = `https://nvapi.nicovideo.jp/v1/playlist/watch-later?sortOrder=${options.order}&sortKey=${options.sort}`;
-			const cacheKey = `watchLaterItems, order: ${options.order} ${options.sort}`;
+		async _getDeflistItems(frontendId = 6, frontendVersion = 0) {
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/watch-later?sortKey=addedAt&sortOrder=desc';
+			const page = new URLSearchParams({ pageSize: 100, page: 1 });
+			let data;
+			do {
+				const res = await netUtil.fetch(`${url}&${page.toString()}`, {
+					headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
+					credentials: 'include'
+				}).then(r => r.json())
+					.catch(e => { throw new Error('とりあえずマイリストの取得失敗(2)', e); });
+				if (res.meta.status !== 200 || !res.data.watchLater) {
+					throw new Error('とりあえずマイリストの取得失敗(1)', res);
+				}
+				if (data == null) {
+					data = res.data.watchLater;
+				} else {
+					data.hasInvisibleItems = data.hasInvisibleItems || res.data.watchLater.hasInvisibleItems;
+					data.hasNext = res.data.watchLater.hasNext;
+					data.items.concat(res.data.watchLater.items);
+				}
+				page.set('page', parseInt(page.get('page')) + 1);
+			} while (data && data.hasNext);
+			return data.items;
+		}
+		async _getMylistItems(id, frontendId = 6, frontendVersion = 0) {
+			const url = `https://nvapi.nicovideo.jp/v1/users/me/mylists/${id}`;
+			const page = new URLSearchParams({ pageSize: 100, page: 1 });
+			let data;
+			do {
+				const res = await netUtil.fetch(`${url}?${page.toString()}`, {
+					headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
+					credentials: 'include'
+				}).then(r => r.json())
+					.catch(e => { throw new Error('マイリスト取得失敗(2)', e); });
+				if (res.meta.status !== 200 || !res.data.mylist) {
+					throw new Error('マイリスト取得失敗(1)', res);
+				}
+				if (data == null) {
+					data = res.data.mylist;
+				} else {
+					data.hasInvisibleItems = data.hasInvisibleItems || res.data.mylist.hasInvisibleItems;
+					data.hasNext = res.data.mylist.hasNext;
+					data.items.concat(res.data.mylist.items);
+				}
+				page.set('page', parseInt(page.get('page')) + 1);
+			} while (data && data.hasNext);
+			return data.items;
+		}
+		async getMylistList({ frontendId = 6, frontendVersion = 0 } = {}) {
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/mylists';
+			const cacheKey = 'mylistList';
 			const cacheData = cacheStorage.getItem(cacheKey);
 			if (cacheData) {
 				return cacheData;
@@ -6848,85 +6937,31 @@ const MylistApiLoader = (() => {
 				headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
 				credentials: 'include'
 			}).then(r => r.json())
-				.catch(e => { throw new Error('とりあえずマイリストの取得失敗(2)', e); });
-			if (result.meta.status !== 200 || !result.data.items) {
-				throw new Error('とりあえずマイリストの取得失敗(1)', result);
-			}
-			const data = result.data.items;
-			cacheStorage.setItem(cacheKey, data, CACHE_EXPIRE_TIME);
-			return data;
-		}
-		async getMylistItems(groupId, options = {}, { frontendId = 6, frontendVersion = 0 } = {}) {
-			if (groupId === 'deflist') {
-				return this.getDeflistItems(options, frontendId, frontendVersion);
-			}
-			options.order = options.order == null ? 'asc' : options.order;
-			options.sort = options.sort == null ? 'registeredAt' : options.sort;
-			const url = `https://nvapi.nicovideo.jp/v1/playlist/mylist/${groupId}?sortOrder=${options.order}&sortKey=${options.sort}`;
-			const cacheKey = `mylistItems: ${groupId}, order: ${options.order} ${options.sort}`;
-			const cacheData = cacheStorage.getItem(cacheKey);
-			if (cacheData) {
-				return cacheData;
-			}
-			const result = await netUtil.fetch(url, {
-				headers: { 'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion },
-				credentials: 'include',
-			}).then(r => r.json())
-				.catch(e => { throw new Error('マイリストの取得失敗(2)', e); });
-			if (result.meta.status !== 200 || !result.data.items) {
-				throw new Error('マイリストの取得失敗(1)', result);
-			}
-			const data = result.data.items;
-			cacheStorage.setItem(cacheKey, data, CACHE_EXPIRE_TIME);
-			return data;
-		}
-		async getMylistList() {
-			const url = 'https://www.nicovideo.jp/api/mylistgroup/list';
-			const cacheKey = 'mylistList';
-			const cacheData = cacheStorage.getItem(cacheKey);
-			if (cacheData) {
-				return cacheData;
-			}
-			const result = await netUtil.fetch(url, {credentials: 'include'})
-					.then(r => r.json())
-					.catch(e => { throw new Error('マイリスト一覧の取得失敗(2)', e); });
-			if (result.status !== 'ok' || !result.mylistgroup) {
+				.catch(e => { throw new Error('マイリスト一覧の取得失敗(2)', e); });
+			if (result.meta.status !== 200 || !result.data.mylists) {
 				throw new Error(`マイリスト一覧の取得失敗(1) ${result.status}${result.message}`, result);
 			}
-			const data = result.mylistgroup;
+			const data = result.data.mylists;
 			cacheStorage.setItem(cacheKey, data, CACHE_EXPIRE_TIME);
 			return data;
 		}
 		async findDeflistItemByWatchId(watchId) {
-			const items = await this.getDeflistItems().catch(e => { throw new Error('とりあえずマイリストの取得失敗(3)', e); });
-			for (let i = 0, len = items.length; i < len; i++) {
-				let item = items[i], wid = item.content.id ;
-				if (wid === watchId) {
+			const items = await this._getDeflistItems().catch(() => []);
+			for (let item of items) {
+				if (item.itemId === watchId) {
 					return item;
 				}
 			}
 			return Promise.reject();
 		}
 		async findMylistItemByWatchId(watchId, groupId) {
-			const items = await this._getMylistItemsFromWapi(groupId).catch(() => []);
-			for (let i = 0, len = items.length; i < len; i++) {
-				let item = items[i], wid = item.id || item.item_data.watch_id;
-				if (wid === watchId) {
+			const items = await this._getMylistItems(groupId).catch(() => []);
+			for (let item of items) {
+				if (item.itemId === watchId) {
 					return item;
 				}
 			}
 			return Promise.reject();
-		}
-		async _getMylistItemsFromWapi(groupId) {
-			const url = `https://www.nicovideo.jp/api/mylist/list?group_id=${groupId}`;
-			const result = await netUtil.fetch(url, {credentials: 'include'})
-				.then(r => r.json())
-				.catch(e => { throw new Error('マイリスト取得失敗(2)', e); });
-			if (!result || result.status !== 'ok' && !result.mylistitem) {
-				window.console.info('getMylistItems fail', result);
-				throw new Error('マイリスト取得失敗(1)', result);
-			}
-			return result.mylistitem;
 		}
 		async removeDeflistItem(watchId) {
 			const item = await this.findDeflistItemByWatchId(watchId).catch(result => {
@@ -7177,31 +7212,6 @@ const CommonsTreeLoader = {
 		return netUtil.jsonp(url);
 	}
 };
-const UploadedVideoApiLoader = (() => {
-	let loader = null;
-	class UploadedVideoApiLoader {
-		async load(userId) {
-			const url = `https://flapi.nicovideo.jp/api/watch/uploadedvideo?user_id=${userId}`;
-			const result = await netUtil.fetch(url, {credentials: 'include'})
-				.then(r => r.json())
-				.catch(e => { throw new Error('動画一覧の取得失敗(2)', e); });
-			if (result.status !== 'ok' || !result.list) {
-				throw new Error(`動画一覧の取得失敗(1) ${result && result.message}`, result);
-			}
-			return result.list;
-		}
-	}
-	return {
-		load: userId => {
-			loader = loader || new UploadedVideoApiLoader();
-			return loader.load(userId);
-		},
-		getUploadedVideos: userId => {
-			loader = loader || new UploadedVideoApiLoader();
-			return loader.load(userId);
-		}
-	};
-})();
 const UaaLoader = {
 	load: (videoId, {limit = 50} = {}) => {
 		const url = `https://api.nicoad.nicovideo.jp/v1/contents/video/${videoId}/thanks?limit=${limit}`;
@@ -8476,8 +8486,8 @@ class TagEditApi {
 Object.assign(ZenzaWatch.api, {
   VideoInfoLoader,
   ThumbInfoLoader,
+  PlaylistApiLoader,
   MylistApiLoader,
-  UploadedVideoApiLoader,
   CacheStorage,
   IchibaLoader,
   UaaLoader,
@@ -8490,8 +8500,8 @@ Object.assign(ZenzaWatch.api, {
   MatrixRankingLoader,
   NicoSearchApiV2Loader
 });
+ZenzaWatch.init.playlistApiLoader = PlaylistApiLoader;
 ZenzaWatch.init.mylistApiLoader = MylistApiLoader;
-ZenzaWatch.init.UploadedVideoApiLoader = UploadedVideoApiLoader;
 /*
 * アニメーション基準用の時間ゲッターとしてはperformance.now()よりWeb Animations APIのほうが優れている。
 */
@@ -22988,41 +22998,30 @@ class PlayList extends VideoList {
 		const items = videoListItemsRawData.map(raw => new VideoListItem(raw));
 		return this._insertAll(items, options);
 	}
-	loadFromMylist(mylistId, options, msgInfo) {
+	load(playlist, options, msgInfo) {
 		this._initializeView();
-		if (!this._mylistApiLoader) {
-			this._mylistApiLoader = MylistApiLoader;
+		if (!this._playlistApiLoader) {
+			this._playlistApiLoader = PlaylistApiLoader;
 		}
-		window.console.time('loadMylist: ' + mylistId);
-		return this._mylistApiLoader
-			.getMylistItems(mylistId, options, msgInfo).then(items => {
-				window.console.timeEnd('loadMylist: ' + mylistId);
-				let videoListItems = items.filter(item => {
-					if (item.id === null) {
-						return;
-					} // ごく稀にある？idが抹消されたレコード
-					if (item.item_data) {
-						if (parseInt(item.item_type, 10) !== 0) {
-							return;
-						} // not video
-						if (parseInt(item.item_data.deleted, 10) !== 0) {
-							return;
-						} // 削除動画を除外
-					} else {
-						if (item.thumbnail_url && item.thumbnail_url.indexOf('video_deleted') >= 0) {
-							return;
-						}
-					}
-					return true;
-				}).map(item => VideoListItem.createByMylistItem(item));
+		const timeKey = `loadPlaylist: ${playlist.type} ${playlist.id || playlist.options.tag || playlist.options.keyword}`;
+		window.console.time(timeKey);
+		return this._playlistApiLoader
+			.load(playlist, msgInfo).then(items => {
+				window.console.timeEnd(timeKey);
+				if (options.ownerId) {
+					items = items.filter(item => item.content.owner.id == options.ownerId);
+				}
+				let videoListItems = items.map(item => VideoListItem.createByMylistItem(item));
 				if (videoListItems.length < 1) {
 					return Promise.reject({
 						status: 'fail',
-						message: 'マイリストの取得に失敗しました'
+						message: 'プレイリストの取得に失敗しました'
 					});
 				}
 				if (options.shuffle) {
 					videoListItems = _.shuffle(videoListItems);
+				} else if (options.playlistSort) {
+					videoListItems.reverse();
 				}
 				if (options.insert) {
 					this._insertAll(videoListItems, options);
@@ -23036,42 +23035,8 @@ class PlayList extends VideoList {
 					status: 'ok',
 					message:
 						options.append ?
-							'マイリストの内容をプレイリストに追加しました' :
-							'マイリストの内容をプレイリストに読み込みしました'
-				});
-			});
-	}
-	loadUploadedVideo(userId, options) {
-		this._initializeView();
-		if (!this._uploadedVideoApiLoader) {
-			this._uploadedVideoApiLoader = UploadedVideoApiLoader;
-		}
-		window.console.time('loadUploadedVideos' + userId);
-		return this._uploadedVideoApiLoader
-			.load(userId, options).then(items => {
-				window.console.timeEnd('loadUploadedVideos' + userId);
-				let videoListItems = items.map(item => VideoListItem.createByMylistItem(item));
-				if (videoListItems.length < 1) {
-					return Promise.reject({});
-				}
-				videoListItems.reverse();
-				if (options.shuffle) {
-					videoListItems = _.shuffle(videoListItems);
-				}
-				if (options.insert) {
-					this._insertAll(videoListItems, options);
-				} else if (options.append) {
-					this._appendAll(videoListItems, options);
-				} else {
-					this._replaceAll(videoListItems, options);
-				}
-				this.emit('update');
-				return Promise.resolve({
-					status: 'ok',
-					message:
-						options.append ?
-							'投稿動画一覧をプレイリストに追加しました' :
-							'投稿動画一覧をプレイリストに読み込みしました'
+							'プレイリストに追加しました' :
+							'プレイリストに読み込みしました'
 				});
 			});
 	}
@@ -23118,45 +23083,6 @@ class PlayList extends VideoList {
 							'検索結果をプレイリストに読み込みしました'
 				});
 			});
-	}
-	async loadSeriesList(seriesId, options = {}) {
-		this._initializeView();
-		const data = await RecommendAPILoader.loadSeries(seriesId, options);
-		const videoItems = [];
-		(data.items || []).forEach(item => {
-			if (item.contentType !== 'video') {
-				return;
-			}
-			const content = item.content;
-			videoItems.push(new VideoListItem({
-				_format: 'recommendApi',
-				_data: item,
-				id: item.id,
-				uniq_id: item.id,
-				title: content.title,
-				length_seconds: content.duration,
-				num_res: content.count.comment,
-				mylist_counter: content.count.mylist,
-				view_counter: content.count.view,
-				thumbnail_url: content.thumbnail.url,
-				first_retrieve: content.registeredAt,
-				has_data: true,
-				is_translated: false
-			}));
-		});
-		if (options.insert) {
-			this._insertAll(videoItems, options);
-		} else if (options.append) {
-			this._appendAll(videoItems, options);
-		} else {
-			this._replaceAll(videoItems, options);
-		}
-		this.emit('update');
-		return {
-			status: 'ok',
-			message:
-				options.append ? '動画シリーズをプレイリストに追加しました' : '動画シリーズをプレイリストに読み込みしました'
-		};
 	}
 	insert(watchId) {
 		this._initializeView();
@@ -23537,9 +23463,7 @@ class VideoWatchOptions {
 	get mylistLoadOptions() {
 		let options = {};
 		let query = this.query;
-		options.order = query.order;
-		options.sort = query.sort;
-		options.group_id = query.group_id;
+		options.shuffle = parseInt(query.shuffle, 10) === 1;
 		options.watchId = this._watchId;
 		return options;
 	}
@@ -23549,8 +23473,7 @@ class VideoWatchOptions {
 		if (eventType !== 'click' || query.continuous !== '1') {
 			return false;
 		}
-		if (['mylist', 'deflist', 'tag', 'search'].includes(query.playlist_type) &&
-			(query.group_id || query.order)) {
+		if (query.playlist.type) {
 			return true;
 		}
 		return false;
@@ -25021,24 +24944,20 @@ class NicoVideoPlayerDialog extends Emitter {
 	_onPlaylistInsert(watchId) {
 		this._playlist.insert(watchId);
 	}
-	_onPlaylistSetMylist(mylistId, option) {
-		option = Object.assign({watchId: this._watchId}, option || {});
-		option.order = option.order == null ? 'asc' : option.order;
-		option.sort = option.sort == null ? 'registeredAt' : option.sort;
+	_onPlaylistSetMylist(id) {
+		let option = {watchId: this._watchId};
 		option.insert = this._playlist.isEnable;
-		let query = this._videoWatchOptions.query;
-		option.shuffle = parseInt(query.shuffle, 10) === 1;
-		this._playlist.loadFromMylist(mylistId, option, this._videoInfo.msgInfo).then(result => {
+		this._playlist.load({ type: 'mylist', id }, option, this._videoInfo.msgInfo).then(result => {
 				this.execCommand('notify', result.message);
 				this._state.currentTab = 'playlist';
 				this._playlist.insertCurrentVideo(this._videoInfo);
 			},
 			() => this.execCommand('alert', 'マイリストのロード失敗'));
 	}
-	_onPlaylistSetUploadedVideo(userId, option) {
-		option = Object.assign({watchId: this._watchId}, option || {});
+	_onPlaylistSetUploadedVideo(id) {
+		let option = {watchId: this._watchId};
 		option.insert = this._playlist.isEnable;
-		this._playlist.loadUploadedVideo(userId, option).then(result => {
+		this._playlist.load({ type: 'user-uploaded', id }, option, this._videoInfo.msgInfo).then(result => {
 				this.execCommand('notify', result.message);
 				this._state.currentTab = 'playlist';
 				this._playlist.insertCurrentVideo(this._videoInfo);
@@ -25046,36 +24965,34 @@ class NicoVideoPlayerDialog extends Emitter {
 			err => this.execCommand('alert', err.message || '投稿動画一覧のロード失敗'));
 	}
 	_onPlaylistSetSearchVideo(params) {
-		let option = Object.assign({watchId: this._watchId}, params.option || {});
-		let word = params.word;
-		option.insert = this._playlist.isEnable;
-		if (option.owner) {
-			let ownerId = parseInt(this._videoInfo.owner.id, 10);
-			if (this._videoInfo.isChannel) {
-				option.channelId = ownerId;
-			} else {
-				option.userId = ownerId;
-			}
+		let option = {watchId: this._watchId};
+		let { owner, playlistSort, searchType, ...options } = params.option;
+		if (searchType === 'tag') {
+			options.tag = params.word;
+		} else {
+			options.keyword = params.word;
 		}
-		delete option.owner;
-		let query = this._videoWatchOptions.query;
-		option = Object.assign(option, query);
+		option.insert = this._playlist.isEnable;
+		if (owner) {
+			option.ownerId = parseInt(this._videoInfo.owner.id, 10);
+		}
+		option.playlistSort = playlistSort;
 		this._state.currentTab = 'playlist';
-		this._playlist.loadSearchVideo(word, option).then(result => {
+		this._playlist.load({ type: 'search', options }, option, this._videoInfo.msgInfo).then(result => {
 				this.execCommand('notify', result.message);
 				this._playlist.insertCurrentVideo(this._videoInfo);
-				global.emitter.emitAsync('searchVideo', {word, option});
+				global.emitter.emitAsync('searchVideo', { ...option, ...options });
 				window.setTimeout(() => this._playlist.scrollToActiveItem(), 1000);
 			},
 			err => {
 				this.execCommand('alert', err.message || '検索失敗または該当無し: 「' + word + '」');
 			});
 	}
-	_onPlaylistSetSeriesVideo(id, option = {}) {
-		option = Object.assign({watchId: this._watchId}, option || {});
+	_onPlaylistSetSeriesVideo(id) {
+		let option = {watchId: this._watchId};
 		option.insert = this._playlist.isEnable;
 		this._state.currentTab = 'playlist';
-		this._playlist.loadSeriesList(id, option).then(result => {
+		this._playlist.load({ type: 'series', id }, option, this._videoInfo.msgInfo).then(result => {
 			this.execCommand('notify', result.message);
 			this._playlist.insertCurrentVideo(this._videoInfo);
 			window.setTimeout(() => this._playlist.scrollToActiveItem(), 1000);
@@ -25556,18 +25473,9 @@ class NicoVideoPlayerDialog extends Emitter {
 			let option = this._videoWatchOptions.mylistLoadOptions;
 			let query = this._videoWatchOptions.query;
 			option.append = this.isPlaying && this._playlist.isEnable;
-			option.shuffle = parseInt(query.shuffle, 10) === 1;
 			console.log('playlist option:', option);
-			if (query.playlist_type === 'mylist') {
-				this._playlist.loadFromMylist(option.group_id, option, this._videoInfo.msgInfo);
-			} else if (query.playlist_type === 'deflist') {
-				this._playlist.loadFromMylist('deflist', option, this._videoInfo.msgInfo);
-			} else if (query.playlist_type === 'tag' || query.playlist_type === 'search') {
-				let word = query.tag || query.keyword;
-				option.searchType = query.tag ? 'tag' : '';
-				option = Object.assign(option, query);
-				this._playlist.loadSearchVideo(word, option, this._playerConfig.props['search.limit']);
-			}
+			option.limit = this._playerConfig.props['search.limit'];
+			this._playlist.load(query.playlist, option, this._videoInfo.msgInfo);
 			this._playlist.toggleEnable(true);
 		}
 		this._playlist.insertCurrentVideo(this._videoInfo);
