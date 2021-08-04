@@ -27,7 +27,8 @@ var templates = [
 
 const DEV_HEADER = {
   '_template.js': {
-    name: '// @name           ZenzaWatch DEV版',
+    //name: '// @name           ZenzaWatch DEV版',
+    name: '// @name           ZenzaWatch DEV版 fix playlist',
     description: '// @description    ZenzaWatchの開発 先行バージョン'
   },
   '_uquery.js': {},
