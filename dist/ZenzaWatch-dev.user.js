@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.1
+// @version        2.6.2-fix-playlist.2
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.1';
+    var VER = '2.6.2-fix-playlist.2';
     const ENV = 'DEV';
 
 
@@ -2753,7 +2753,10 @@ const WatchPageHistory = (() => {
 		if (location.host !== 'www.nicovideo.jp') { return; }
 		window.addEventListener('beforeunload', restore, {passive: true});
 		window.addEventListener('error', restore, {passive: true});
-		window.addEventListener('unhandledrejection', restore, {passive: true});
+		window.addEventListener('unhandledrejection', () => {
+			originalUrl = window && window.location && window.location.href;
+			originalTitle = window && window.document && window.document.title;
+		}, {passive: true});
 	};
 	const pushHistoryAgency = async (path, title) => {
 		if (!navigator || !navigator.locks) {
@@ -6793,7 +6796,7 @@ const PlaylistApiLoader = (() => {
 			};
 		}
 		_buildUserUploadedURL(userId, options = {}) {
-			const query = new URLSearchParams(Object.assign({ sortOrder: 'asc', sortKey: 'registeredAt' }, options));
+			const query = new URLSearchParams(Object.assign({ sortOrder: 'desc', sortKey: 'registeredAt' }, options));
 			return {
 				url: `https://nvapi.nicovideo.jp/v1/playlist/user-uploaded/${userId}?${query.toString()}`,
 				cacheKey: `playlist; user-uploaded: ${userId}, orderBy: ${query.get('sortKey')} ${query.get('sortOrder')}`,
@@ -23020,7 +23023,7 @@ class PlayList extends VideoList {
 				}
 				if (options.shuffle) {
 					videoListItems = _.shuffle(videoListItems);
-				} else if (options.playlistSort) {
+				} else if (playlist.type === 'user-uploaded' && playlist.options == null || options.playlistSort) {
 					videoListItems.reverse();
 				}
 				if (options.insert) {
