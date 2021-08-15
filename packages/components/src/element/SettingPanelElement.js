@@ -630,7 +630,7 @@ const {SettingPanelElement} = (() => {
 
       const fileReader = new FileReader();
       fileReader.onload = ev => {
-        this._playerConfig.importJson(ev.target.result);
+        this.config.importJson(ev.target.result);
         location.reload();
       };
 
