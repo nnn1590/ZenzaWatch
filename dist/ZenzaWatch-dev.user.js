@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.2
+// @version        2.6.2-fix-playlist.3
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.2';
+    var VER = '2.6.2-fix-playlist.3';
     const ENV = 'DEV';
 
 
@@ -930,9 +930,7 @@ Config.exportToFile = () => {
 		rel: 'noopener',
 		href: url
 	});
-	(document.body || document.documentElemennt).append(a);
 	a.click();
-	setTimeout(() => a.remove(), 1000);
 };
 const NaviConfig = Config;
 await Config.promise('restore');
@@ -5990,7 +5988,7 @@ const {SettingPanelElement} = (() => {
 			domEvent.dispatchCommand(e.target, 'close');
 			const fileReader = new FileReader();
 			fileReader.onload = ev => {
-				this._playerConfig.importJson(ev.target.result);
+				this.config.importJson(ev.target.result);
 				location.reload();
 			};
 			fileReader.readAsText(file);

@@ -1059,9 +1059,7 @@ Config.exportToFile = () => {
 		rel: 'noopener',
 		href: url
 	});
-	(document.body || document.documentElemennt).append(a);
 	a.click();
-	setTimeout(() => a.remove(), 1000);
 };
 const NaviConfig = Config;
 await Config.promise('restore');
