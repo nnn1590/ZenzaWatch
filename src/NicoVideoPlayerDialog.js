@@ -1204,12 +1204,11 @@ NicoVideoPlayerDialogView.__css__ = `
 
     /* 960x540 */
     @media
-      (min-width: 1328px) and (max-width: 1663px) and
-      (min-height: 700px) and (min-height: 899px)
+      (min-width: 1328px) and (min-height: 700px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
-        width: calc(960px * 1.05) !important;
-        height: 540px !important;
+        width: calc(960px * 1.05);
+        height: 540px;
       }
     }
 
@@ -1218,8 +1217,8 @@ NicoVideoPlayerDialogView.__css__ = `
       (min-width: 1530px) and (min-height: 900px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
-        width: calc(1152px * 1.05) !important;
-        height: 648px !important;
+        width: calc(1152px * 1.05);
+        height: 648px;
       }
     }
 
@@ -1228,8 +1227,8 @@ NicoVideoPlayerDialogView.__css__ = `
       (min-width: 1664px) and (min-height: 900px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
-        width: calc(1280px * 1.05) !important;
-        height: 720px !important;
+        width: calc(1280px * 1.05);
+        height: 720px;
       }
     }
 
@@ -1238,8 +1237,8 @@ NicoVideoPlayerDialogView.__css__ = `
       (min-width: 2336px) and (min-height: 1200px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
-        width: calc(1920px * 1.05) !important;
-        height: 1080px !important;
+        width: calc(1920px * 1.05);
+        height: 1080px;
       }
     }
 
@@ -1248,8 +1247,8 @@ NicoVideoPlayerDialogView.__css__ = `
       (min-width: 2976px) and (min-height: 1660px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
-        width: calc(2560px * 1.05) !important;
-        height: 1440px !important;
+        width: calc(2560px * 1.05);
+        height: 1440px;
       }
     }
   }
