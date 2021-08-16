@@ -1207,8 +1207,7 @@ NicoVideoPlayerDialogView.__css__ = `
 
     /* 960x540 */
     @media
-      (min-width: 1328px) and (max-width: 1663px) and
-      (min-height: 700px) and (min-height: 899px)
+      (min-width: 1328px) and (min-height: 700px)
     {
       .zenzaScreenMode_big .zenzaPlayerContainer {
         width: calc(960px * 1.05);
