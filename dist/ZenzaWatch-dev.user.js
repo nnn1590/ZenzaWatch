@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.4
+// @version        2.6.2-fix-playlist.5
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.4';
+    var VER = '2.6.2-fix-playlist.5';
     const ENV = 'DEV';
 
 
@@ -24473,12 +24473,11 @@ NicoVideoPlayerDialogView.__css__ = `
 		}
 		/* 960x540 */
 		@media
-			(min-width: 1328px) and (max-width: 1663px) and
-			(min-height: 700px) and (min-height: 899px)
+			(min-width: 1328px) and (min-height: 700px)
 		{
 			.zenzaScreenMode_big .zenzaPlayerContainer {
-				width: calc(960px * 1.05) !important;
-				height: 540px !important;
+				width: calc(960px * 1.05);
+				height: 540px;
 			}
 		}
 		/* 1152x648 */
@@ -24486,8 +24485,8 @@ NicoVideoPlayerDialogView.__css__ = `
 			(min-width: 1530px) and (min-height: 900px)
 		{
 			.zenzaScreenMode_big .zenzaPlayerContainer {
-				width: calc(1152px * 1.05) !important;
-				height: 648px !important;
+				width: calc(1152px * 1.05);
+				height: 648px;
 			}
 		}
 		/* 1280x720 */
@@ -24495,8 +24494,8 @@ NicoVideoPlayerDialogView.__css__ = `
 			(min-width: 1664px) and (min-height: 900px)
 		{
 			.zenzaScreenMode_big .zenzaPlayerContainer {
-				width: calc(1280px * 1.05) !important;
-				height: 720px !important;
+				width: calc(1280px * 1.05);
+				height: 720px;
 			}
 		}
 		/* 1920x1080 */
@@ -24504,8 +24503,8 @@ NicoVideoPlayerDialogView.__css__ = `
 			(min-width: 2336px) and (min-height: 1200px)
 		{
 			.zenzaScreenMode_big .zenzaPlayerContainer {
-				width: calc(1920px * 1.05) !important;
-				height: 1080px !important;
+				width: calc(1920px * 1.05);
+				height: 1080px;
 			}
 		}
 		/* 2560x1440 */
@@ -24513,8 +24512,8 @@ NicoVideoPlayerDialogView.__css__ = `
 			(min-width: 2976px) and (min-height: 1660px)
 		{
 			.zenzaScreenMode_big .zenzaPlayerContainer {
-				width: calc(2560px * 1.05) !important;
-				height: 1440px !important;
+				width: calc(2560px * 1.05);
+				height: 1440px;
 			}
 		}
 	}
