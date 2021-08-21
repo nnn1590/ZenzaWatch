@@ -3404,13 +3404,10 @@ class VideoHoverMenu {
   `, {className: 'videoHoverMenu'});
 util.addStyle(`
   .menuItemContainer.leftBottom {
-    bottom: 64px;
+    bottom: calc(64px * var(--zenza-ui-scale,1));
   }
   .menuItemContainer.leftBottom .scalingUI {
     transform-origin: left bottom;
-  }
-  .menuItemContainer.leftBottom .scalingUI {
-    height: 64px;
   }
   .menuItemContainer.rightBottom {
     bottom: 64px;
