@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.5
+// @version        2.6.2-fix-playlist.6
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.5';
+    var VER = '2.6.2-fix-playlist.6';
     const ENV = 'DEV';
 
 
@@ -26493,13 +26493,10 @@ class VideoHoverMenu {
 	`, {className: 'videoHoverMenu'});
 util.addStyle(`
 	.menuItemContainer.leftBottom {
-		bottom: 64px;
+		bottom: calc(64px * var(--zenza-ui-scale,1));
 	}
 	.menuItemContainer.leftBottom .scalingUI {
 		transform-origin: left bottom;
-	}
-	.menuItemContainer.leftBottom .scalingUI {
-		height: 64px;
 	}
 	.menuItemContainer.rightBottom {
 		bottom: 64px;
