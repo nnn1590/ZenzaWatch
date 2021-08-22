@@ -117,7 +117,7 @@ CommentInputPanel.__css__ = (`
 
     width: 200px;
     height: 50px;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 30000};
+    z-index: 30000;
     transform: translate(-50%, -170px);
     overflow: visible;
   }
@@ -131,7 +131,7 @@ CommentInputPanel.__css__ = (`
 
   .commentInputPanel:focus-within {
     width: 500px;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 100000};
+    z-index: 100000;
   }
   .zenzaScreenMode_wide .commentInputPanel,
   .is-fullscreen           .commentInputPanel {

@@ -110,7 +110,7 @@ CONSTANT.COMMON_CSS = `
     opacity: 0.99;
     box-sizing: border-box;
     transition: opacity 0.3s ease;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 50000};
+    z-index: 50000;
     user-select: none;
   }
 

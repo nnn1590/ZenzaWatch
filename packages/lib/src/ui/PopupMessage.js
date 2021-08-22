@@ -9,7 +9,7 @@ const PopupMessage = (() => {
       --alert-color: #c00;
       --shadow-color: #ccc;
 
-      z-index: ${CONSTANT.BASE_Z_INDEX + 100000};
+      z-index: 100000;
       opacity: 0;
       display: block;
       min-width: 150px;
