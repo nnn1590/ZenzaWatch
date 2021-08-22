@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.6
+// @version        2.6.2-fix-playlist.7
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.6';
+    var VER = '2.6.2-fix-playlist.7';
     const ENV = 'DEV';
 
 
@@ -1729,7 +1729,7 @@ CONSTANT.COMMON_CSS = `
 		opacity: 0.99;
 		box-sizing: border-box;
 		transition: opacity 0.3s ease;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 50000};
+		z-index: 50000;
 		user-select: none;
 	}
 	.zenzaPopupMenu:not(.show) {
@@ -1994,7 +1994,7 @@ const PopupMessage = (() => {
 			--notify-color: #0c0;
 			--alert-color: #c00;
 			--shadow-color: #ccc;
-			z-index: ${CONSTANT.BASE_Z_INDEX + 100000};
+			z-index: 100000;
 			opacity: 0;
 			display: block;
 			min-width: 150px;
@@ -24299,7 +24299,7 @@ NicoVideoPlayerDialogView.__css__ = `
 	.zenzaVideoPlayerDialogInner {
 		background: #000;
 		box-sizing: border-box;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 1};
+		z-index: 1;
 		box-shadow: 4px 4px 4px #000;
 	}
 	.zenzaPlayerContainer {
@@ -24382,7 +24382,7 @@ NicoVideoPlayerDialogView.__css__ = `
 	.zenzaPlayerContainer.is-loading .loadingMessageContainer {
 		display: inline-block;
 		position: absolute;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 10000};
+		z-index: 10000;
 		right: 8px;
 		bottom: 8px;
 		font-size: 24px;
@@ -24418,7 +24418,7 @@ NicoVideoPlayerDialogView.__css__ = `
 	.zenzaPlayerContainer.is-error .errorMessageContainer {
 		display: inline-block;
 		position: absolute;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 10000};
+		z-index: 10000;
 		top: 50%;
 		left: 50%;
 		padding: 8px 16px;
@@ -25997,7 +25997,7 @@ class VideoHoverMenu {
 		.menuItemContainer {
 			box-sizing: border-box;
 			position: absolute;
-			z-index: ${CONSTANT.BASE_Z_INDEX + 40000};
+			z-index: 40000;
 			overflow: visible;
 			will-change: transform, opacity;
 			user-select: none;
@@ -26412,7 +26412,7 @@ class VideoHoverMenu {
 			font-size: 20px;
 			top: 0;
 			right: 0;
-			z-index: ${CONSTANT.BASE_Z_INDEX + 60000};
+			z-index: 60000;
 			margin: 0 0 40px 40px;
 			color: #ccc;
 			border: solid 1px #888;
@@ -26464,7 +26464,7 @@ class VideoHoverMenu {
 			border-radius: 8px;
 			text-align: center;
 			color: var(--base-fore-color);
-			z-index: ${CONSTANT.BASE_Z_INDEX + 10};
+			z-index: 10;
 			background: rgba(0, 0, 0, 0.8);
 			transition: transform 0.2s ease, box-shadow 0.2s, text-shadow 0.2s, font-size 0.2s;
 			box-shadow: 0 0 2px rgba(255, 255, 192, 0.8);
@@ -26838,7 +26838,7 @@ CommentInputPanel.__css__ = (`
 		box-sizing: border-box;
 		width: 200px;
 		height: 50px;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 30000};
+		z-index: 30000;
 		transform: translate(-50%, -170px);
 		overflow: visible;
 	}
@@ -26851,7 +26851,7 @@ CommentInputPanel.__css__ = (`
 	}
 	.commentInputPanel:focus-within {
 		width: 500px;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 100000};
+		z-index: 100000;
 	}
 	.zenzaScreenMode_wide .commentInputPanel,
 	.is-fullscreen           .commentInputPanel {
@@ -28277,7 +28277,7 @@ css.addStyle(`
 		width: 320px;
 		height: 100%;
 		box-sizing: border-box;
-		z-index: ${CONSTANT.BASE_Z_INDEX + 25000};
+		z-index: 25000;
 		background: #333;
 		color: #ccc;
 		overflow-x: hidden;
@@ -28775,7 +28775,7 @@ css.addStyle(`
 				left: 0;
 				width: 100%;
 				height: ${CONSTANT.BOTTOM_PANEL_HEIGHT}px;
-				z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+				z-index: 20000;
 			}
 			.zenzaScreenMode_normal .ZenzaIchibaItemView {
 				margin: 8px 8px 96px;
@@ -28799,7 +28799,7 @@ css.addStyle(`
 				left: 0;
 				width: 100%;
 				height: ${CONSTANT.BOTTOM_PANEL_HEIGHT}px;
-				z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+				z-index: 20000;
 			}
 			.zenzaScreenMode_big .ZenzaIchibaItemView {
 				margin: 8px 8px 96px;
@@ -29072,7 +29072,7 @@ VideoHeaderPanel.__css__ = (`
 		.zenzaWatchVideoHeaderPanel {
 			position: absolute;
 			width: calc(100%);
-			z-index: ${CONSTANT.BASE_Z_INDEX + 30000};
+			z-index: 30000;
 			box-sizing: border-box;
 			padding: 8px 8px 0;
 			bottom: calc(100% + 8px);
@@ -29089,7 +29089,7 @@ VideoHeaderPanel.__css__ = (`
 		}
 		.zenzaScreenMode_sideView .zenzaWatchVideoHeaderPanel,
 		.zenzaWatchVideoHeaderPanel.is-fullscreen {
-			z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+			z-index: 20000;
 		}
 		.zenzaWatchVideoHeaderPanel {
 			pointer-events: none;
@@ -29155,7 +29155,7 @@ VideoHeaderPanel.__css__ = (`
 		}
 		.zenzaWatchVideoHeaderPanel:focus-within,
 		.zenzaWatchVideoHeaderPanel.is-relatedMenuOpen {
-			z-index: ${CONSTANT.BASE_Z_INDEX + 50000};
+			z-index: 50000;
 		}
 		.zenzaWatchVideoHeaderPanel .series-thumbnail-cover {
 			position: absolute;
