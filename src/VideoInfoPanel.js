@@ -473,7 +473,7 @@ css.addStyle(`
     width: 320px;
     height: 100%;
     box-sizing: border-box;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 25000};
+    z-index: 25000;
     background: #333;
     color: #ccc;
     overflow-x: hidden;
@@ -1027,7 +1027,7 @@ css.addStyle(`
         left: 0;
         width: 100%;
         height: ${CONSTANT.BOTTOM_PANEL_HEIGHT}px;
-        z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+        z-index: 20000;
       }
 
       .zenzaScreenMode_normal .ZenzaIchibaItemView {
@@ -1054,7 +1054,7 @@ css.addStyle(`
         left: 0;
         width: 100%;
         height: ${CONSTANT.BOTTOM_PANEL_HEIGHT}px;
-        z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+        z-index: 20000;
       }
 
       .zenzaScreenMode_big .ZenzaIchibaItemView {
@@ -1376,7 +1376,7 @@ VideoHeaderPanel.__css__ = (`
     .zenzaWatchVideoHeaderPanel {
       position: absolute;
       width: calc(100%);
-      z-index: ${CONSTANT.BASE_Z_INDEX + 30000};
+      z-index: 30000;
       box-sizing: border-box;
       padding: 8px 8px 0;
       bottom: calc(100% + 8px);
@@ -1393,7 +1393,7 @@ VideoHeaderPanel.__css__ = (`
     }
     .zenzaScreenMode_sideView .zenzaWatchVideoHeaderPanel,
     .zenzaWatchVideoHeaderPanel.is-fullscreen {
-      z-index: ${CONSTANT.BASE_Z_INDEX + 20000};
+      z-index: 20000;
     }
 
     .zenzaWatchVideoHeaderPanel {
@@ -1469,7 +1469,7 @@ VideoHeaderPanel.__css__ = (`
 
     .zenzaWatchVideoHeaderPanel:focus-within,
     .zenzaWatchVideoHeaderPanel.is-relatedMenuOpen {
-      z-index: ${CONSTANT.BASE_Z_INDEX + 50000};
+      z-index: 50000;
     }
 
     .zenzaWatchVideoHeaderPanel .series-thumbnail-cover {

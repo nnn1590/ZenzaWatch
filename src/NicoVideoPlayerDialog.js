@@ -1013,7 +1013,7 @@ NicoVideoPlayerDialogView.__css__ = `
   .zenzaVideoPlayerDialogInner {
     background: #000;
     box-sizing: border-box;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 1};
+    z-index: 1;
     box-shadow: 4px 4px 4px #000;
   }
 
@@ -1105,7 +1105,7 @@ NicoVideoPlayerDialogView.__css__ = `
   .zenzaPlayerContainer.is-loading .loadingMessageContainer {
     display: inline-block;
     position: absolute;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 10000};
+    z-index: 10000;
     right: 8px;
     bottom: 8px;
     font-size: 24px;
@@ -1145,7 +1145,7 @@ NicoVideoPlayerDialogView.__css__ = `
   .zenzaPlayerContainer.is-error .errorMessageContainer {
     display: inline-block;
     position: absolute;
-    z-index: ${CONSTANT.BASE_Z_INDEX + 10000};
+    z-index: 10000;
     top: 50%;
     left: 50%;
     padding: 8px 16px;
@@ -2883,7 +2883,7 @@ class VideoHoverMenu {
     .menuItemContainer {
       box-sizing: border-box;
       position: absolute;
-      z-index: ${CONSTANT.BASE_Z_INDEX + 40000};
+      z-index: 40000;
       overflow: visible;
 
       will-change: transform, opacity;
@@ -3335,7 +3335,7 @@ class VideoHoverMenu {
       font-size: 20px;
       top: 0;
       right: 0;
-      z-index: ${CONSTANT.BASE_Z_INDEX + 60000};
+      z-index: 60000;
       margin: 0 0 40px 40px;
       color: #ccc;
       border: solid 1px #888;
@@ -3390,7 +3390,7 @@ class VideoHoverMenu {
       border-radius: 8px;
       text-align: center;
       color: var(--base-fore-color);
-      z-index: ${CONSTANT.BASE_Z_INDEX + 10};
+      z-index: 10;
       background: rgba(0, 0, 0, 0.8);
       transition: transform 0.2s ease, box-shadow 0.2s, text-shadow 0.2s, font-size 0.2s;
       box-shadow: 0 0 2px rgba(255, 255, 192, 0.8);
