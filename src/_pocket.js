@@ -48,6 +48,7 @@ import {DataStorage} from '../packages/lib/src/infra/DataStorage';
 import {reg} from '../packages/lib/src/text/reg';
 import {parseThumbInfo} from '../packages/lib/src/nico/parseThumbInfo';
 import {ThumbInfoCacheDb} from '../packages/lib/src/nico/ThumbInfoCacheDb';
+import {MylistApiLoader} from '../packages/lib/src/nico/MylistApiLoader';
 import {objUtil} from '../packages/lib/src/infra/objUtil';
 import {bounce} from '../packages/lib/src/infra/bounce';
 //@require AntiPrototypeJs
@@ -1877,6 +1878,8 @@ Object.assign(util, css);
 Object.assign(util, workerUtil);
 //@require nicoUtil
 Object.assign(util, nicoUtil);
+//@require netUtil
+Object.assign(util, netUtil);
 //@require textUtil
 Object.assign(util, textUtil);
 //@require reg
@@ -2299,7 +2302,8 @@ Object.assign(util, textUtil);
 
     MylistPocket.debug.ThumbInfoLoader = ThumbInfoLoader;
 
-
+const emitter = util.emitter;
+//@require MylistApiLoader
 
     const DeflistApiLoader = ((CsrfTokenLoader) => {
       const cacheStorage = new CacheStorage(
@@ -3320,11 +3324,16 @@ Object.assign(util, textUtil);
     const deflistAdd = (watchId) => {
       const enableAutoComment = config.props.mylist.enableAutoComment;
       if (location.host === 'www.nicovideo.jp') {
-        if (enableAutoComment) {
-          return DeflistApiLoader.addItemWithOwnerName(watchId);
-        } else {
-          return DeflistApiLoader.addItem(watchId, '');
-        }
+        return (() => {
+          if (!enableAutoComment) { return Promise.resolve({}); }
+          return ThumbInfoLoader.load(watchId);
+        })().then((info) => {
+          const originalVideoId = info.originalVideoId ?
+            `元動画: ${info.originalVideoId}` : '';
+          const description = enableAutoComment ?
+            `投稿者: ${info.owner.name} ${info.owner.linkId} ${originalVideoId}` : '';
+          return MylistApiLoader.addDeflistItem(watchId, description)
+        });
       }
 
       let zenza;
@@ -3337,20 +3346,23 @@ Object.assign(util, textUtil);
         }, () => { return Promise.resolve(); });
       }).then(() => {
         if (!enableAutoComment) { return {}; }
-        return ThumbInfoLoader.loadOwnerInfo(watchId);
-      }).then((owner) => {
-        if (!owner.id) {
-          return zenza.external.deflistAdd({watchId});
+        return ThumbInfoLoader.load(watchId);
+      }).then((info) => {
+        if (!enableAutoComment) {
+          return zenza.external.deflistAdd({watchId, token});
         }
 
-        const description = `${owner.localeName} ${owner.linkId}`;
+        const originalVideoId = info.originalVideoId ?
+          `元動画: ${info.originalVideoId}` : '';
+        const description = enableAutoComment ?
+          `投稿者: ${info.owner.name} ${info.owner.linkId} ${originalVideoId}` : '';
         return zenza.external.deflistAdd({watchId, description, token});
       });
     };
 
     const deflistRemove = (watchId) => {
       if (location.host === 'www.nicovideo.jp') {
-        return DeflistApiLoader.removeItem(watchId);
+        return MylistApiLoader.removeDeflistItem(watchId);
       }
 
       let zenza;
