@@ -26,7 +26,7 @@
 // @exclude     *://dic.nicovideo.jp/p/*
 // @exclude     *://ext.nicovideo.jp/thumb/*
 // @exclude     *://ext.nicovideo.jp/thumb_channel/*
-// @version     0.5.14
+// @version     0.5.15-fix-mylist-api.1
 // @grant       none
 // @author      segabito macmoto
 // @license     public domain
@@ -2224,6 +2224,101 @@ isLoginLegacy: () => {
 	getMypageVer: () => document.querySelector('#js-initial-userpage-data') ? 'spa' : 'legacy'
 };
 Object.assign(util, nicoUtil);
+const netUtil = {
+	ajax: params => {
+		if (location.host !== 'www.nicovideo.jp') {
+			return NicoVideoApi.ajax(params);
+		}
+		return $.ajax(params);
+	},
+	abortableFetch: (url, params) => {
+		params = params || {};
+		const racers = [];
+		let timer;
+		const timeout = (typeof params.timeout === 'number' && !isNaN(params.timeout)) ? params.timeout : 30 * 1000;
+		if (timeout > 0) {
+			racers.push(new Promise((resolve, reject) =>
+				timer = setTimeout(() => timer ? reject({name: 'timeout', message: 'timeout'}) : resolve(), timeout))
+			);
+		}
+		const controller = window.AbortController ? (new AbortController()) : null;
+		if (controller) {
+			params.signal = controller.signal;
+		}
+		racers.push(fetch(url, params));
+		return Promise.race(racers)
+			.catch(err => {
+				if (err.name === 'timeout') {
+					if (controller) {
+						controller.abort();
+					}
+				}
+				return Promise.reject(err.message || err);
+			}).finally(() => timer = null);
+	},
+	fetch(url, params) {
+		if (location.host !== 'www.nicovideo.jp') {
+			return NicoVideoApi.fetch(url, params);
+		}
+		return this.abortableFetch(url, params);
+	},
+	jsonp: (() => {
+		let callbackId = 0;
+		const getFuncName = () => `JsonpCallback${callbackId++}`;
+		let cw = null;
+		const getFrame = () => {
+			if (cw) { return cw; }
+			return new Promise(resolve => {
+				const iframe = document.createElement('iframe');
+				iframe.srcdoc = `
+					<html><head></head></html>
+				`.trim();
+				iframe.sandbox = 'allow-same-origin allow-scripts';
+				Object.assign(iframe.style, {
+					width: '32px', height: '32px', position: 'fixed', left: '-100vw', top: '-100vh',
+					pointerEvents: 'none', overflow: 'hidden'
+				});
+				iframe.onload = () => {
+					cw = iframe.contentWindow;
+					resolve(cw);
+				};
+				(document.body || document.documentElement).append(iframe);
+			});
+		};
+		const createFunc = async (url, funcName) => {
+			let timeoutTimer = null;
+			const win = await getFrame();
+			const doc = win.document;
+			const script = doc.createElement('script');
+			return new Promise((resolve, reject) => {
+				win[funcName] = result => {
+					win.clearTimeout(timeoutTimer);
+					timeoutTimer = null;
+					script.remove();
+					delete win[funcName];
+					resolve(result);
+				};
+				timeoutTimer = win.setTimeout(() => {
+					script.remove();
+					delete win[funcName];
+					if (timeoutTimer) {
+						reject(new Error(`jsonp timeout ${url}`));
+					}
+				}, 30000);
+				script.src = url;
+				doc.head.append(script);
+			});
+		};
+		return (url, funcName) => {
+			if (!funcName) {
+				funcName = getFuncName();
+			}
+			url = `${url}${url.includes('?') ? '&' : '?'}callback=${funcName}`;
+			return createFunc(url, funcName);
+		};
+	})()
+};
+Object.assign(util, netUtil);
 const textUtil = {
 	secToTime: sec => {
 		return [
@@ -3560,7 +3655,323 @@ class CrossDomainGate extends Emitter {
 
     MylistPocket.debug.ThumbInfoLoader = ThumbInfoLoader;
 
-
+const emitter = util.emitter;
+const MylistApiLoader = (() => {
+	const CACHE_EXPIRE_TIME = 5 * 60 * 1000;
+	const TOKEN_EXPIRE_TIME = 59 * 60 * 1000;
+	let cacheStorage = null;
+	let token = '';
+	if (ZenzaWatch) {
+		emitter.on('csrfTokenUpdate', t => {
+			token = t;
+			if (cacheStorage) {
+				cacheStorage.setItem('csrfToken', token, TOKEN_EXPIRE_TIME);
+			}
+		});
+	}
+	class MylistApiLoader {
+		constructor() {
+			if (!cacheStorage) {
+				cacheStorage = new CacheStorage(sessionStorage);
+			}
+			if (!token) {
+				token = cacheStorage.getItem('csrfToken');
+				if (token) {
+					console.log('cached token exists', token);
+				}
+			}
+		}
+		setCsrfToken(t) {
+			token = t;
+			if (cacheStorage) {
+				cacheStorage.setItem('csrfToken', token, TOKEN_EXPIRE_TIME);
+			}else{
+				cacheStorage = new CacheStorage(sessionStorage);
+				cacheStorage.setItem('csrfToken', token, TOKEN_EXPIRE_TIME);
+			}
+		}
+		async _getCsrfToken(){
+				if (!cacheStorage) {
+						cacheStorage = new CacheStorage(sessionStorage);
+				}
+				token = cacheStorage.getItem('csrfToken');
+				if (token) {
+						console.log('cached token exists', token);
+				}else{
+						const tokenUrl = 'https://www.nicovideo.jp/my/mylist';
+						const result = await netUtil.fetch( tokenUrl, {
+						cledentials: 'include'
+						}).then(r => r.text()).catch(result => {
+								throw new Error('マイリストトークン取得失敗', {result, status: 'fail'});
+						});
+						const dom = new DOMParser().parseFromString(result, 'text/html');
+						const initUserpageDataContena = dom.querySelector('#js-initial-userpage-data');
+						const env = JSON.parse(initUserpageDataContena.getAttribute('data-environment'));
+						this.setCsrfToken(env.csrfToken); 
+				}
+				return token;
+		}
+		async _getDeflistItems(frontendId = 6, frontendVersion = 0) {
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/watch-later?sortKey=addedAt&sortOrder=desc';
+			const page = new URLSearchParams({ pageSize: 100, page: 1 });
+			let data;
+			do {
+				const res = await netUtil.fetch(`${url}&${page.toString()}`, {
+					headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
+					credentials: 'include'
+				}).then(r => r.json())
+					.catch(e => { throw new Error('とりあえずマイリストの取得失敗(2)', e); });
+				if (res.meta.status !== 200 || !res.data.watchLater) {
+					throw new Error('とりあえずマイリストの取得失敗(1)', res);
+				}
+				if (data == null) {
+					data = res.data.watchLater;
+				} else {
+					data.hasInvisibleItems = data.hasInvisibleItems || res.data.watchLater.hasInvisibleItems;
+					data.hasNext = res.data.watchLater.hasNext;
+					data.items.concat(res.data.watchLater.items);
+				}
+				page.set('page', parseInt(page.get('page')) + 1);
+			} while (data && data.hasNext);
+			return data.items;
+		}
+		async _getMylistItems(id, frontendId = 6, frontendVersion = 0) {
+			const url = `https://nvapi.nicovideo.jp/v1/users/me/mylists/${id}`;
+			const page = new URLSearchParams({ pageSize: 100, page: 1 });
+			let data;
+			do {
+				const res = await netUtil.fetch(`${url}?${page.toString()}`, {
+					headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
+					credentials: 'include'
+				}).then(r => r.json())
+					.catch(e => { throw new Error('マイリスト取得失敗(2)', e); });
+				if (res.meta.status !== 200 || !res.data.mylist) {
+					throw new Error('マイリスト取得失敗(1)', res);
+				}
+				if (data == null) {
+					data = res.data.mylist;
+				} else {
+					data.hasInvisibleItems = data.hasInvisibleItems || res.data.mylist.hasInvisibleItems;
+					data.hasNext = res.data.mylist.hasNext;
+					data.items.concat(res.data.mylist.items);
+				}
+				page.set('page', parseInt(page.get('page')) + 1);
+			} while (data && data.hasNext);
+			return data.items;
+		}
+		async getMylistList({ frontendId = 6, frontendVersion = 0 } = {}) {
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/mylists';
+			const cacheKey = 'mylistList';
+			const cacheData = cacheStorage.getItem(cacheKey);
+			if (cacheData) {
+				return cacheData;
+			}
+			const result = await netUtil.fetch(url, {
+				headers: {'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion},
+				credentials: 'include'
+			}).then(r => r.json())
+				.catch(e => { throw new Error('マイリスト一覧の取得失敗(2)', e); });
+			if (result.meta.status !== 200 || !result.data.mylists) {
+				throw new Error(`マイリスト一覧の取得失敗(1) ${result.status}${result.message}`, result);
+			}
+			const data = result.data.mylists;
+			cacheStorage.setItem(cacheKey, data, CACHE_EXPIRE_TIME);
+			return data;
+		}
+		async findDeflistItemByWatchId(watchId) {
+			const items = await this._getDeflistItems().catch(() => []);
+			for (let item of items) {
+				if (item.itemId === watchId) {
+					return item;
+				}
+			}
+			return Promise.reject();
+		}
+		async findMylistItemByWatchId(watchId, groupId) {
+			const items = await this._getMylistItems(groupId).catch(() => []);
+			for (let item of items) {
+				if (item.itemId === watchId) {
+					return item;
+				}
+			}
+			return Promise.reject();
+		}
+		async removeDeflistItem(watchId) {
+			const item = await this.findDeflistItemByWatchId(watchId).catch(result => {
+				throw new Error('動画が見つかりません', {result, status: 'fail'});
+			});
+			await this._getCsrfToken().catch(result => {
+					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
+			});
+			const url = 'https://www.nicovideo.jp/api/deflist/delete';
+			const body = `id_list[0][]=${item.watchId}&token=${token}`;
+			const cacheKey = 'deflistItems';
+			const req = {
+				method: 'POST',
+				body,
+				headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+				credentials: 'include'
+			};
+			const result = await netUtil.fetch(url, req)
+				.then(r => r.json()).catch(e => e || {});
+			if (result && result.status && result.status === 'ok' ) {
+				cacheStorage.removeItem(cacheKey);
+				emitter.emitAsync('deflistRemove', watchId);
+				return {
+					status: 'ok',
+					result: result,
+					message: 'とりあえずマイリストから削除'
+				};
+			}
+				throw new Error(result.error.description, {
+					status: 'fail', result, code: result.error.code
+				});
+		}
+		async removeMylistItem(watchId, groupId) {
+			await this._getCsrfToken().catch(result => {
+					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
+				});
+			const item = await this.findMylistItemByWatchId(watchId, groupId).catch(result => {
+					throw new Error('動画が見つかりません', {result, status: 'fail'});
+				});
+			const url = 'https://www.nicovideo.jp/api/mylist/delete';
+			window.console.log('delete item:', item);
+			const body = 'id_list[0][]=' + item.item_id + '&token=' + token + '&group_id=' + groupId;
+			const cacheKey = `mylistItems: ${groupId}`;
+			const result = await netUtil.fetch(url, {
+				method: 'POST',
+				body,
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded'},
+				credentials: 'include'
+			}).then(r => r.json())
+				.catch(result => {
+					throw new Error('マイリストから削除失敗(2)', {result, status: 'fail'});
+				});
+			if (result.status && result.status === 'ok') {
+				cacheStorage.removeItem(cacheKey);
+				emitter.emitAsync('mylistRemove', watchId, groupId);
+				return {
+					status: 'ok',
+					result,
+					message: 'マイリストから削除'
+				};
+			}
+			throw new Error(result.error.description, {
+				status: 'fail',
+				result,
+				code: result.error.code
+			});
+		}
+		async _addDeflistItem(watchId, description, isRetry, { frontendId = 6, frontendVersion = 0 } = {}) {
+			let url = 'https://nvapi.nicovideo.jp/v1/users/me/watch-later';
+			let body = `watchId=${watchId}&memo=`;
+			if (description) {
+				body += `${encodeURIComponent(description)}`;
+			}
+			let cacheKey = 'deflistItems';
+			const result = await netUtil.fetch(url, {
+				method: 'POST',
+				body,
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion, 'X-Request-With': 'https://www.nicovideo.jp' },
+				credentials: 'include'
+			}).then(r => r.json())
+				.catch(err => {
+						throw new Error('とりあえずマイリスト登録失敗(200)', {
+							status: 'fail',
+							result: err
+						});
+					});
+			if (result.meta.status && ( result.meta.status === 200 || result.meta.status === 201 )) {
+				cacheStorage.removeItem(cacheKey);
+				emitter.emitAsync('deflistAdd', watchId, description);
+				return {
+					status: 'ok',
+					result,
+					message: 'とりあえずマイリスト登録'
+				};
+			}else if(result.meta.status && result.meta.status === 409){
+					await this.removeDeflistItem(watchId).catch(err => {
+							throw new Error('とりあえずマイリスト登録失敗(101)', {
+								status: 'fail',
+								result: err.result,
+								code: err.code
+							});
+						});
+					const added = await this._addDeflistItem(watchId, description, true);
+					return {
+						status: 'ok',
+						result: added,
+						message: 'とりあえずマイリストの先頭に移動'
+					};
+			}
+			if (!result.meta.status || !result.error) { // result.errorが残っているかは不明
+				throw new Error('とりあえずマイリスト登録失敗(100)', {
+					status: 'fail',
+					result,
+				});
+			}
+			if (result.error.code !== 'EXIST' || isRetry) {
+				throw new Error(result.error.description, {
+					status: 'fail',
+					result,
+					code: result.error.code,
+					message: result.error.description
+				});
+			}
+/*
+			await self.removeDeflistItem(watchId).catch(err => {
+					throw new Error('とりあえずマイリスト登録失敗(101)', {
+						status: 'fail',
+						result: err.result,
+						code: err.code
+					});
+				});
+			const added = await self._addDeflistItem(watchId, description, true);
+			return {
+				status: 'ok',
+				result: added,
+				message: 'とりあえずマイリストの先頭に移動'
+			};
+*/
+		}
+		addDeflistItem(watchId, description, frontendId, frontendVersion) {
+			return this._addDeflistItem(watchId, description, false,frontendId, frontendVersion);
+		}
+		async addMylistItem(watchId, groupId, description, { frontendId = 6, frontendVersion = 0 } = {}) {
+			let body = 'itemId=' + watchId + '&description=';//+ '&token=' + token + '&group_id=' + groupId;
+			if (description) {
+				body += encodeURIComponent(description);
+			}
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/mylists/' + groupId + '/items?' + body ;
+			const cacheKey = `mylistItems: ${groupId}`;
+			const result = await netUtil.fetch(url, {
+				method: 'POST',
+				body,
+				headers: {  'Content-Type': 'application/x-www-form-urlencoded', 'X-Frontend-Id': frontendId, 'X-Frontend-Version': frontendVersion, 'X-Request-With': 'https://www.nicovideo.jp'},
+				credentials: 'include'
+			}).then(r => r.json())
+				.catch(err => {
+					throw new Error('マイリスト登録失敗(200)', {
+						status: 'fail',
+						result: err
+					});
+				});
+			if (result.meta.status && ( result.meta.status === 200 || result.meta.status === 201 )) {
+				cacheStorage.removeItem(cacheKey);
+				this.removeDeflistItem(watchId).catch(() => {});
+				return {status: 'ok', result, message: 'マイリスト登録'};
+			}
+			if (!result.meta.status /*|| !result.error*/) {
+				throw new Error('マイリスト登録失敗(100)', {status: 'fail', result});
+			}
+			emitter.emitAsync('mylistAdd', watchId, groupId, description);
+			throw new Error(result.error.description, {
+					status: 'fail', result, code: result.error.code
+			});
+		}
+	}
+	return new MylistApiLoader();
+})();
 
     const DeflistApiLoader = ((CsrfTokenLoader) => {
       const cacheStorage = new CacheStorage(
@@ -4581,11 +4992,16 @@ class CrossDomainGate extends Emitter {
     const deflistAdd = (watchId) => {
       const enableAutoComment = config.props.mylist.enableAutoComment;
       if (location.host === 'www.nicovideo.jp') {
-        if (enableAutoComment) {
-          return DeflistApiLoader.addItemWithOwnerName(watchId);
-        } else {
-          return DeflistApiLoader.addItem(watchId, '');
-        }
+        return (() => {
+          if (!enableAutoComment) { return Promise.resolve({}); }
+          return ThumbInfoLoader.load(watchId);
+        })().then((info) => {
+          const originalVideoId = info.originalVideoId ?
+            `元動画: ${info.originalVideoId}` : '';
+          const description = enableAutoComment ?
+            `投稿者: ${info.owner.name} ${info.owner.linkId} ${originalVideoId}` : '';
+          return MylistApiLoader.addDeflistItem(watchId, description)
+        });
       }
 
       let zenza;
@@ -4598,20 +5014,23 @@ class CrossDomainGate extends Emitter {
         }, () => { return Promise.resolve(); });
       }).then(() => {
         if (!enableAutoComment) { return {}; }
-        return ThumbInfoLoader.loadOwnerInfo(watchId);
-      }).then((owner) => {
-        if (!owner.id) {
-          return zenza.external.deflistAdd({watchId});
+        return ThumbInfoLoader.load(watchId);
+      }).then((info) => {
+        if (!enableAutoComment) {
+          return zenza.external.deflistAdd({watchId, token});
         }
 
-        const description = `${owner.localeName} ${owner.linkId}`;
+        const originalVideoId = info.originalVideoId ?
+          `元動画: ${info.originalVideoId}` : '';
+        const description = enableAutoComment ?
+          `投稿者: ${info.owner.name} ${info.owner.linkId} ${originalVideoId}` : '';
         return zenza.external.deflistAdd({watchId, description, token});
       });
     };
 
     const deflistRemove = (watchId) => {
       if (location.host === 'www.nicovideo.jp') {
-        return DeflistApiLoader.removeItem(watchId);
+        return MylistApiLoader.removeDeflistItem(watchId);
       }
 
       let zenza;
