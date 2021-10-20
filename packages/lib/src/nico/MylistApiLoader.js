@@ -2,7 +2,6 @@ import {netUtil} from '../infra/netUtil';
 import {CacheStorage} from '../infra/CacheStorage';
 import {Emitter} from '../Emitter';
 const emitter = new Emitter();
-const ZenzaWatch = {emitter};
 //===BEGIN===
 const MylistApiLoader = (() => {
   // マイリスト/とりあえずマイリストの取得APIには
@@ -18,7 +17,7 @@ const MylistApiLoader = (() => {
   let token = '';
 
 
-  if (ZenzaWatch) {
+  if (window.ZenzaWatch) {
     emitter.on('csrfTokenUpdate', t => {
       token = t;
       if (cacheStorage) {
