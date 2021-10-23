@@ -15,135 +15,139 @@ const debug = {};
 const VideoInfoLoader = (function () {
   const cacheStorage = new CacheStorage(sessionStorage);
 
-  const parseFromGinza = function (dom) {
-    try {
-      let watchApiData = JSON.parse(dom.querySelector('#watchAPIDataContainer').textContent);
-      let videoId = watchApiData.videoDetail.id;
-      let hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
-      let flvInfo = textUtil.parseQuery(
-        decodeURIComponent(watchApiData.flashvars.flvInfo)
-      );
-      let dmcInfo = JSON.parse(
-        decodeURIComponent(watchApiData.flashvars.dmcInfo || '{}')
-      );
-      let thumbnail =
-        watchApiData.flashvars.thumbImage +
-        (hasLargeThumbnail ? '.L' : '');
-      let videoUrl = flvInfo.url ? flvInfo.url : '';
-      let isEco = /\d+\.\d+low$/.test(videoUrl);
-      let isFlv = /\/smile\?v=/.test(videoUrl);
-      let isMp4 = /\/smile\?m=/.test(videoUrl);
-      let isSwf = /\/smile\?s=/.test(videoUrl);
-      let isDmc = watchApiData.flashvars.isDmc === 1 && dmcInfo.movie.session;
-      let csrfToken = watchApiData.flashvars.csrfToken;
-      let playlistToken = watchApiData.playlistToken;
-      let watchAuthKey = watchApiData.flashvars.watchAuthKey;
-      let seekToken = watchApiData.flashvars.seek_token;
-      let threads = [];
-      let msgInfo = {
-        server: flvInfo.ms,
-        threadId: flvInfo.thread_id * 1,
-        duration: flvInfo.l,
-        userId: flvInfo.user_id,
-        isNeedKey: flvInfo.needs_key === '1',
-        optionalThreadId: flvInfo.optional_thread_id,
-        defaultThread: {id: flvInfo.thread_id * 1},
-        optionalThreads: [],
-        layers: [],
-        threads,
-        userKey: flvInfo.userkey,
-        hasOwnerThread: !!watchApiData.videoDetail.has_owner_thread,
-        when: null
-      };
-      if (msgInfo.hasOwnerThread) {
-        threads.push({
-          id: flvInfo.thread_id * 1,
-          isThreadkeyRequired: flvInfo.needs_key === '1',
-          isDefaultPostTarget: false,
-          fork: 1,
-          isActive: true,
-          label: 'owner'
-        });
-      }
-      threads.push({
-        id: flvInfo.thread_id * 1,
-        isThreadkeyRequired: flvInfo.needs_key === '1',
-        isDefaultPostTarget: true,
-        isActive: true,
-        label: flvInfo.needs_key === '1' ? 'community' : 'default'
-      });
-      let playlist =
-        JSON.parse(dom.querySelector('#playlistDataContainer').textContent);
-      const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
-      const isPlayable = isDmc || (isMp4 && !isSwf && (videoUrl.indexOf('http') === 0));
-
-      cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
-
-      dmcInfo.quality = {
-        audios: (dmcInfo.movie.session || {audios: []}).audios.map(id => {return {id, available: true, bitrate: 64000};}),
-        videos: (dmcInfo.movie.session || {videos: []}).videos.reverse()
-        .map((id, level_index) => { return {
-          id,
-          available: true,
-          level_index,
-          bitrate: parseInt(id.replace(/^.*_(\d+)kbps.*/, '$1')) * 1000
-        };})
-        .reverse()
-      };
-
-      let result = {
-        _format: 'watchApi',
-        watchApiData,
-        flvInfo,
-        dmcInfo,
-        msgInfo,
-        playlist,
-        isDmcOnly: isPlayable && !isPlayableSmile,
-        isPlayable,
-        isMp4,
-        isFlv,
-        isSwf,
-        isEco,
-        isDmc,
-        thumbnail,
-        csrfToken,
-        playlistToken,
-        watchAuthKey,
-        seekToken
-      };
-
-      emitter.emitAsync('csrfTokenUpdate', csrfToken);
-      return result;
-
-    } catch (e) {
-      window.console.error('error: parseFromGinza ', e);
-      return null;
-    }
-  };
-
   const parseFromHtml5Watch = function (dom) {
     const watchDataContainer = dom.querySelector('#js-initial-watch-data');
-    const data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
-    const env = JSON.parse(watchDataContainer.getAttribute('data-environment'));
+    const {
+      // baseURL,
+      frontendId,
+      frontendVersion,
+      // i18n,
+      // isMonitoringLogUser,
+      // newPlaylistRate,
+      // newRelatedVideos,
+      playlistToken, //項目は残ってるけど値は出なくなってる
+      // urls,
+    } = JSON.parse(watchDataContainer.getAttribute('data-environment'));
 
-    const videoId = data.video.id;
+    const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
+    const {
+      context = {}, // contextがない
+      thread = {}, // threadがない
+      // ads,
+      // category,
+      channel, // nullable
+      client: {
+        // nicosid,
+        watchId,
+        // watchTrackId,
+      },
+      comment: {
+        // isAttentionRequired,
+        keys: {
+          userKey,
+        },
+        layers,
+        ng: {
+          channel: channelNg,
+          // ngScore,
+          owner: ownerNg,
+          // viewer,
+        },
+        // nvComment,
+        server: {
+          url: commentServer,
+        },
+        threads,
+      },
+      community, // nullable
+      // easyComment,
+      external: {
+        commons: {
+          hasContentTree,
+        },
+        // ichiba,
+      },
+      // genre,
+      // marquee,
+      media: {
+        delivery: dmcInfo, // nullable
+        // deliveryLegacy,
+      },
+      // okReason,
+      owner, // nullable
+      payment: {
+        // preview,
+        video: {
+          // commentableUserType,
+          // isAdmission,
+          // isPpv,
+          isPremium: isPremiumOnly,
+          // watchableUserType,
+        },
+      },
+      // pcWatchPage,
+      player: {
+        // comment,
+        initialPlayback, // nullable
+        // layerMode,
+      },
+      // ppv,
+      // ranking,
+      series,
+      // smartphone,
+      // system,
+      tag: {
+        // edit,
+        // hasR18Tag,
+        // isPublishedNicoscript,
+        items: tags,
+        // viewer,
+      },
+      video: {
+        dmcInfo: videoDmcInfo = {}, // dmcInfoがない
+        smileInfo: flvInfo = {}, // smileInfoがない
+        flvInfo: {
+          url: videoUrl = '',
+        } = flvInfo,
+        // 9d091f87, // version hash?
+        // commentableUserTypeForPayment,
+        count: {
+          comment: commentCount,
+          like: likeCount,
+          mylist: mylistCount,
+          view: viewCount,
+        },
+        description,
+        duration,
+        id: videoId,
+        // isAuthenticationRequired,
+        // isDeleted,
+        // isEmbedPlayerAllowed,
+        // isGiftAllowed,
+        // isNoBanner,
+        // isPrivate,
+        // rating,
+        registeredAt,
+        thumbnail: {
+          largeUrl: thumbnailUrl, // null
+          // middleUrl,
+          // ogp,
+          url: thumbnail,
+          player: largeThumbnail,
+        },
+        title,
+        viewer: videoStatusForViewer, // nullable
+        // watchableUserTypeForPayment,
+      },
+      // videoAds,
+      // videoLive,
+      viewer, // nullable
+      // waku,
+    } = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
+
     const hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
-    const flvInfo = data.video.smileInfo || {};
-    const dmcInfo = data.media.delivery || {};
-    const thumbnail = data.video.thumbnail.largeUrl;
-    const videoUrl = flvInfo.url ? flvInfo.url : '';
-    const isEco = /\d+\.\d+low$/.test(videoUrl);
-    const isFlv = /\/smile\?v=/.test(videoUrl);
-    const isMp4 = /\/smile\?m=/.test(videoUrl);
-    const isSwf = /\/smile\?s=/.test(videoUrl);
-    const isDmc = !!dmcInfo && !!dmcInfo.movie.session;
     const csrfToken = null;
     const watchAuthKey = null;
-    const playlistToken = env.playlistToken; //項目は残ってるけど値は出なくなってる
-    const context = data.context;
-    const commentComposite = data.comment;
-    const threads = commentComposite.threads.map(t => Object.assign({}, t));
-    const layers  = commentComposite.layers.map(t => Object.assign({}, t));
     layers.forEach(layer => {
       layer.threadIds.forEach(({id, fork}) => {
         threads.forEach(thread => {
@@ -153,133 +157,166 @@ const VideoInfoLoader = (function () {
         });
       });
     });
+    const resumeInfo = (() => {
+      const {
+        type = '',
+        positionSec = null,
+      } = { ...initialPlayback };
+      return {
+        initialPlaybackType: type,
+        initialPlaybackPosition: positionSec ?? 0,
+      };
+    })();
+    const isLiked = videoStatusForViewer?.like.isLiked ?? false;
+    const viewerInfo = (() => {
+      const {
+        id = 0,
+        isPremium = false,
+      } = { ...viewer };
+      return { id, isPremium };
+    })();
     const linkedChannelVideo = false;
     const isNeedPayment = false;
     const defaultThread = threads.find(t => t.isDefaultPostTarget);
     const msgInfo = {
-      server: commentComposite.server.url,
-      threadId: defaultThread ? defaultThread.id : (data.thread.ids.community || data.thread.ids.default),
-      duration: data.video.duration,
-      userId: data.viewer ? data.viewer.id : 0,
+      server: commentServer,
+      threadId: defaultThread ? defaultThread.id : (thread.ids && (thread.ids.community || thread.ids.default)),
+      duration,
+      userId: viewerInfo.id,
       isNeedKey: threads.findIndex(t => t.isThreadkeyRequired) >= 0, // (isChannel || isCommunity)
       optionalThreadId: '',
       defaultThread,
       optionalThreads: threads.filter(t => t.id !== defaultThread.id) || [],
       threads,
-      userKey: data.comment.keys.userKey,
+      userKey,
       hasOwnerThread: threads.find(t => t.isOwnerThread),
       when: null,
-      frontendId : env.frontendId,
-      frontendVersion : env.frontendVersion
+      frontendId,
+      frontendVersion
     };
 
-    const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
-    const isPlayable = isDmc || (isMp4 && !isSwf && (videoUrl.indexOf('http') === 0));
+    const isPlayable = !!dmcInfo?.movie.session;
 
     cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
 
     const playlist = {playlist: []};
 
-    const tagList = [];
-    
-    data.tag.items.forEach(t => {
-      tagList.push({
-        _data: t,
-        //id: t.id, //ID廃止
-        //tag: t.name, //移行期間措置
-        name: t.name,
-        isNicodicArticleExists: t.isNicodicArticleExists,
-        isLocked: t.isLocked, // 形式が統一されてない悲しみを吸収
-        isLockedBySystem: t.isLocked ? 1 : 0
-        //lck: t.isLocked ? '1' : '0', //lckもいらない
-        //cat: t.isCategory カテゴリ廃止
-      });
+    const tagList = tags.map(tag => {
+      const {
+        // isCategory, // カテゴリ廃止
+        // isCategoryCandidate,
+        isLocked,
+        isNicodicArticleExists,
+        name,
+      } = tag;
+      return {
+        _data: tag,
+        isLocked,
+        isNicodicArticleExists,
+        name,
+      }
     });
-      
-    /*
-      FLASHは廃止になりました
-      data.tag.items.forEach(t => {
-        tagList.push({
-          _data: t,
-          id: t.id,
-          tag: t.name,
-          dic: t.isNicodicArticleExists,
-          lock: t.isLocked, // 形式が統一されてない悲しみを吸収
-          owner_lock: t.isLocked ? 1 : 0,
-          lck: t.isLocked ? '1' : '0',
-          cat: t.isCategory
-        });
-      });
-    */
-    let channelInfo = null, channelId = null;
-    if (data.channel) {
+
+    let channelInfo, channelId, uploaderInfo = null;
+    if (channel) {
+      const {
+        id,
+        // isDisplayAdBanner,
+        // isOfficialAnime,
+        name,
+        thumbnail: {
+          smallUrl,
+          url,
+        },
+        // viewer: {
+        //   follow: {
+        //     isBookmarked,
+        //     isFollowed,
+        //     token,
+        //     tokenTimestamp,
+        //   },
+        // },
+      } = { ...channel };
       channelInfo = {
-        icon_url: data.channel.thumbnail.smallUrl || '',
-        id: data.channel.id,
-        name: data.channel.name,
-        is_favorited: data.channel.isFavorited ? 1 : 0
+        icon_url: smallUrl ?? url ?? '',
+        id,
+        name,
       };
-      channelId = channelInfo.id;
+      channelId = id;
     }
-    let uploaderInfo = null;
-    if (data.owner) {
+    if (owner) {
+      const {
+        // channel,
+        iconUrl,
+        id,
+        // isMylistsPublic,
+        // isVideosPublic,
+        // live,
+        nickname,
+        // videoLiveNotice,
+        // viewer: {
+        //   isFollowing,
+        // },
+      } = { ...owner };
       uploaderInfo = {
-        icon_url: data.owner.iconUrl,
-        id: data.owner.id,
-        nickname: data.owner.nickname,
-        is_favorited: data.owner.isFavorited,
-        isMyVideoPublic: data.owner.isUserMyVideoPublic
+        icon_url: iconUrl,
+        id,
+        nickname,
       };
     }
 
     const watchApiData = {
       videoDetail: {
-        v: data.client.watchId,
-        id: data.video.id,
-        title: data.video.title,
-        title_original: data.video.originalTitle,
-        description: data.video.description,
-        description_original: data.video.originalDescription,
-        postedAt: new Date(data.video.registeredAt).toLocaleString(),
-        thumbnail: data.video.thumbnail.url,
-        largeThumbnail: data.video.thumbnail.player,
-        length: data.video.duration,
+        v: watchId,
+        id: videoId,
+        title,
+        // title_original: data.video.originalTitle,
+        description,
+        // description_original: data.video.originalDescription,
+        postedAt: new Date(registeredAt).toLocaleString(),
+        thumbnail,
+        largeThumbnail,
+        length: duration,
 
-        commons_tree_exists: !!data.external.commons.hasContentTree,
+        commons_tree_exists: hasContentTree,
 
-        width: data.video.width,
-        height: data.video.height,
+        // width: data.video.width,
+        // height: data.video.height,
 
-        isChannel: data.channel && data.channel.id,
+        isChannel: channel && channel.id,
         isMymemory: false,
-        communityId: data.community ? data.community.id : null,
-        isPremiumOnly: data.viewer ? data.viewer.isPremiumOnly : false,
-        isLiked: data.video.viewer ? data.video.viewer.like.isLiked : false,
+        communityId: community?.id ?? null,
+        isPremiumOnly,
+        isLiked,
         channelId,
 
-        commentCount: data.video.count.comment,
-        mylistCount: data.video.count.mylist,
-        viewCount: data.video.count.view,
+        commentCount,
+        likeCount,
+        mylistCount,
+        viewCount,
 
         tagList,
       },
-      viewerInfo: {id: data.viewer ? data.viewer.id : 0},
+      viewerInfo,
       channelInfo,
       uploaderInfo
     };
 
-    let ngFilters = null;
-    if (data.video && data.video.dmcInfo && data.video.dmcInfo.thread && data.video.dmcInfo.thread) {
-      if (data.video.dmcInfo.thread.channel_ng_words && data.video.dmcInfo.thread.channel_ng_words.length) {
-        ngFilters = data.video.dmcInfo.thread.channel_ng_words;
-      } else if (data.video.dmcInfo.thread.owner_ng_words && data.video.dmcInfo.thread.owner_ng_words.length) {
-        ngFilters = data.video.dmcInfo.thread.owner_ng_words;
+    let ngFilters = [];
+    if (videoDmcInfo && videoDmcInfo.thread) {
+      if (videoDmcInfo.thread.channel_ng_words && videoDmcInfo.thread.channel_ng_words.length) {
+        ngFilters = videoDmcInfo.thread.channel_ng_words;
+      } else if (videoDmcInfo.thread.owner_ng_words && videoDmcInfo.thread.owner_ng_words.length) {
+        ngFilters = videoDmcInfo.thread.owner_ng_words;
       }
     }
     if (data.context && data.context.ownerNGList && data.context.ownerNGList.length) {
-      ngFilters = data.context.ownerNGList;
+      ngFilters = Array.prototype.concat(ngFilters, data.context.ownerNGList);
     }
-    if (ngFilters && ngFilters.length) {
+
+    ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
+
+    if (ngFilters.length) {
       const ngtmp = [];
       ngFilters.forEach(ng => {
         if (!ng.source || !ng.destination) { return; }
@@ -291,31 +328,28 @@ const VideoInfoLoader = (function () {
 
     const result = {
       _format: 'html5watchApi',
-      _data: data,
+      _data,
       watchApiData,
       flvInfo,
-      dmcInfo,
+      dmcInfo: dmcInfo ?? {},
       msgInfo,
       playlist,
-      isDmcOnly: isPlayable && !isPlayableSmile,
+      isDmcOnly: true,
       isPlayable,
-      isMp4,
-      isFlv,
-      isSwf,
-      isEco,
-      isDmc,
-      thumbnail,
+      isMp4: false,
+      isFlv: false,
+      isSwf: false,
+      isEco: false,
+      isDmc: isPlayable,
+      thumbnailUrl,
       csrfToken,
       watchAuthKey,
       playlistToken,
-      series: data.series,
+      series,
 
       isNeedPayment,
       linkedChannelVideo,
-      resumeInfo: {
-        initialPlaybackType: (data.player.initialPlayback? data.player.initialPlayback.type : ''),
-        initialPlaybackPosition: (data.player.initialPlayback? data.player.initialPlayback.positionSec : 0)
-      }
+      resumeInfo,
     };
 
     emitter.emitAsync('csrfTokenUpdate', csrfToken);
@@ -325,9 +359,7 @@ const VideoInfoLoader = (function () {
 
   const parseWatchApiData = function (src) {
     const dom = new DOMParser().parseFromString(src, 'text/html');
-    if (dom.querySelector('#watchAPIDataContainer')) {
-      return parseFromGinza(dom);
-    } else if (dom.querySelector('#js-initial-watch-data')) {
+    if (dom.querySelector('#js-initial-watch-data')) {
       return parseFromHtml5Watch(dom);
     } else if (dom.querySelector('#PAGEBODY .mb16p4 .font12')) {
       return {

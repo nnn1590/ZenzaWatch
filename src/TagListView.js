@@ -333,24 +333,9 @@ class TagListView extends BaseViewComponent {
     let link = this._createLink(tagName);
     let search = this._createSearch(tagName);
     let data = textUtil.escapeHtml(JSON.stringify(tag));
-    // APIごとに形式が統一されてなくてひどい
-    let className = (tag.isLocked || tag.isLockedBySystem === 1 || tag.lck === '1')  ? 'tagItem is-Locked' : 'tagItem';
+    let className = tag.isLocked ? 'tagItem is-Locked' : 'tagItem';
     
     return `<li class="${className}" data-tag="${data}" data-tag-id="${tagName}">${dic}${del}${link}${search}</li>`;
-  
-  
-  /*
-    let text = tag.tag;
-    let dic = this._createDicIcon(text, !!tag.dic);
-    let del = this._createDeleteButton(tag.tag);
-    let link = this._createLink(text);
-    let search = this._createSearch(text);
-    let data = textUtil.escapeHtml(JSON.stringify(tag));
-    // APIごとに形式が統一されてなくてひどい
-    let className = (tag.lock || tag.owner_lock === 1 || tag.lck === '1') ? 'tagItem is-Locked' : 'tagItem';
-    className = (tag.cat) ? `${className} is-Category` : className;
-    return `<li class="${className}" data-tag="${data}" data-tag-id="${tag.tag}">${dic}${del}${link}${search}</li>`;
-*/
   }
 
   _onTagInputKeyDown(e) {
