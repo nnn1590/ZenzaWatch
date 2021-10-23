@@ -132,7 +132,7 @@ class VideoListView extends Emitter {
       this.model.removeItem(item);
       return;
     }
-    item.isFavorite = isFav;
+    item.isFavorited = isFav;
     item.isPocketResolved = true;
     item.watchId = info.watchId;
     item.info = info;
