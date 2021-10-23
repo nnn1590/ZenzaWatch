@@ -1,7 +1,7 @@
-// import {html, render} from 'lit-html';
-// import * as lit from 'https://unpkg.com/lit-html?module'; //https://cdn.jsdelivr.net/npm/lit-html@0.9.0/lit-html.min.js';
-import * as lit from '../../../../node_modules/lit-html/lit-html.js';
-// import * as lit from 'https://unpkg.com/lit-html?module'; //'https://cdn.jsdelivr.net/npm/lit-html@1.1.0/lit-html.min.js';
+// import {html, render} from 'lit/html.js';
+// import * as lit from 'https://unpkg.com/lit?module'; //https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
+import * as lit from '../../../../node_modules/lit/html.js';
+// import * as lit from 'https://unpkg.com/lit?module'; //'https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
 // const {html, render} = lit;
 const dll = {lit};
 import {util} from '../util/util.js';
@@ -21,7 +21,7 @@ class BaseCommandElement extends HTMLElement {
     if (dll.lit) {
       return dll.lit;
     }
-    dll.lit = await util.dimport('https://unpkg.com/lit-html?module');
+    dll.lit = await util.dimport('https://unpkg.com/lit?module');
     return dll.lit;
   }
 

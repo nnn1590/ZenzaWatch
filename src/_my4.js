@@ -25,7 +25,7 @@ const global = {
 //@require bounce
 //@require cssUtil
   const [lit] = await Promise.all([
-    dimport('https://unpkg.com/lit-html?module')
+    dimport('https://unpkg.com/lit?module')
   ]);
   const {html} = lit;
   const $ = self.jQuery;

@@ -1,6 +1,6 @@
-import * as lit from 'https://unpkg.com/lit-html?module';
-import {repeat} from 'https://unpkg.com/lit-html/directives/repeat?module';
-import {classMap} from 'https://unpkg.com/lit-html/directives/class-map?module';
+import * as lit from 'https://unpkg.com/lit?module';
+import {repeat} from 'https://unpkg.com/lit/directives/repeat?module';
+import {classMap} from 'https://unpkg.com/lit/directives/class-map?module';
 
 const dll = { directives: {}};
 //===BEGIN===

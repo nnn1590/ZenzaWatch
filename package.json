@@ -40,7 +40,7 @@
     "intelli-espower-loader": "^1.0.1",
     "jquery": "^3.3.1",
     "jsdom": "^11.6.2",
-    "lit-html": "^1.1.0",
+    "lit": "^2.0.2",
     "lodash": "^4.17.5",
     "mocha": "^3.5.3",
     "mock-local-storage": "^1.0.5",

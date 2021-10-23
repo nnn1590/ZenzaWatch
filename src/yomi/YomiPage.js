@@ -1,4 +1,4 @@
-import {html, render} from 'lit-html';
+import {html, render} from 'lit/html.js';
 import {ShadowDancer} from '../ShadowDancer/ShadowDancer';
 import {ResizeWatchDog} from '../ShadowDancer/WatchDogs';
 
