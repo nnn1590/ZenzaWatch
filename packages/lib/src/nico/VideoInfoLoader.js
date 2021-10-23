@@ -15,112 +15,6 @@ const debug = {};
 const VideoInfoLoader = (function () {
   const cacheStorage = new CacheStorage(sessionStorage);
 
-  const parseFromGinza = function (dom) {
-    try {
-      let watchApiData = JSON.parse(dom.querySelector('#watchAPIDataContainer').textContent);
-      let videoId = watchApiData.videoDetail.id;
-      let hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
-      let flvInfo = textUtil.parseQuery(
-        decodeURIComponent(watchApiData.flashvars.flvInfo)
-      );
-      let dmcInfo = JSON.parse(
-        decodeURIComponent(watchApiData.flashvars.dmcInfo || '{}')
-      );
-      let thumbnail =
-        watchApiData.flashvars.thumbImage +
-        (hasLargeThumbnail ? '.L' : '');
-      let videoUrl = flvInfo.url ? flvInfo.url : '';
-      let isEco = /\d+\.\d+low$/.test(videoUrl);
-      let isFlv = /\/smile\?v=/.test(videoUrl);
-      let isMp4 = /\/smile\?m=/.test(videoUrl);
-      let isSwf = /\/smile\?s=/.test(videoUrl);
-      let isDmc = watchApiData.flashvars.isDmc === 1 && dmcInfo.movie.session;
-      let csrfToken = watchApiData.flashvars.csrfToken;
-      let playlistToken = watchApiData.playlistToken;
-      let watchAuthKey = watchApiData.flashvars.watchAuthKey;
-      let seekToken = watchApiData.flashvars.seek_token;
-      let threads = [];
-      let msgInfo = {
-        server: flvInfo.ms,
-        threadId: flvInfo.thread_id * 1,
-        duration: flvInfo.l,
-        userId: flvInfo.user_id,
-        isNeedKey: flvInfo.needs_key === '1',
-        optionalThreadId: flvInfo.optional_thread_id,
-        defaultThread: {id: flvInfo.thread_id * 1},
-        optionalThreads: [],
-        layers: [],
-        threads,
-        userKey: flvInfo.userkey,
-        hasOwnerThread: !!watchApiData.videoDetail.has_owner_thread,
-        when: null
-      };
-      if (msgInfo.hasOwnerThread) {
-        threads.push({
-          id: flvInfo.thread_id * 1,
-          isThreadkeyRequired: flvInfo.needs_key === '1',
-          isDefaultPostTarget: false,
-          fork: 1,
-          isActive: true,
-          label: 'owner'
-        });
-      }
-      threads.push({
-        id: flvInfo.thread_id * 1,
-        isThreadkeyRequired: flvInfo.needs_key === '1',
-        isDefaultPostTarget: true,
-        isActive: true,
-        label: flvInfo.needs_key === '1' ? 'community' : 'default'
-      });
-      let playlist =
-        JSON.parse(dom.querySelector('#playlistDataContainer').textContent);
-      const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
-      const isPlayable = isDmc || (isMp4 && !isSwf && (videoUrl.indexOf('http') === 0));
-
-      cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
-
-      dmcInfo.quality = {
-        audios: (dmcInfo.movie.session || {audios: []}).audios.map(id => {return {id, available: true, bitrate: 64000};}),
-        videos: (dmcInfo.movie.session || {videos: []}).videos.reverse()
-        .map((id, level_index) => { return {
-          id,
-          available: true,
-          level_index,
-          bitrate: parseInt(id.replace(/^.*_(\d+)kbps.*/, '$1')) * 1000
-        };})
-        .reverse()
-      };
-
-      let result = {
-        _format: 'watchApi',
-        watchApiData,
-        flvInfo,
-        dmcInfo,
-        msgInfo,
-        playlist,
-        isDmcOnly: isPlayable && !isPlayableSmile,
-        isPlayable,
-        isMp4,
-        isFlv,
-        isSwf,
-        isEco,
-        isDmc,
-        thumbnail,
-        csrfToken,
-        playlistToken,
-        watchAuthKey,
-        seekToken
-      };
-
-      emitter.emitAsync('csrfTokenUpdate', csrfToken);
-      return result;
-
-    } catch (e) {
-      window.console.error('error: parseFromGinza ', e);
-      return null;
-    }
-  };
-
   const parseFromHtml5Watch = function (dom) {
     const watchDataContainer = dom.querySelector('#js-initial-watch-data');
     const {
@@ -466,9 +360,7 @@ const VideoInfoLoader = (function () {
 
   const parseWatchApiData = function (src) {
     const dom = new DOMParser().parseFromString(src, 'text/html');
-    if (dom.querySelector('#watchAPIDataContainer')) {
-      return parseFromGinza(dom);
-    } else if (dom.querySelector('#js-initial-watch-data')) {
+    if (dom.querySelector('#js-initial-watch-data')) {
       return parseFromHtml5Watch(dom);
     } else if (dom.querySelector('#PAGEBODY .mb16p4 .font12')) {
       return {
