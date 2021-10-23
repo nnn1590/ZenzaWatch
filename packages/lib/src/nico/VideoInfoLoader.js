@@ -124,7 +124,17 @@ const VideoInfoLoader = (function () {
   const parseFromHtml5Watch = function (dom) {
     const watchDataContainer = dom.querySelector('#js-initial-watch-data');
     const data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
-    const env = JSON.parse(watchDataContainer.getAttribute('data-environment'));
+    const {
+      // baseURL,
+      frontendId,
+      frontendVersion,
+      // i18n,
+      // isMonitoringLogUser,
+      // newPlaylistRate,
+      // newRelatedVideos,
+      playlistToken, //項目は残ってるけど値は出なくなってる
+      // urls,
+    } = JSON.parse(watchDataContainer.getAttribute('data-environment'));
 
     const videoId = data.video.id;
     const hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
@@ -139,7 +149,6 @@ const VideoInfoLoader = (function () {
     const isDmc = !!dmcInfo && !!dmcInfo.movie.session;
     const csrfToken = null;
     const watchAuthKey = null;
-    const playlistToken = env.playlistToken; //項目は残ってるけど値は出なくなってる
     const context = data.context;
     const commentComposite = data.comment;
     const threads = commentComposite.threads.map(t => Object.assign({}, t));
@@ -169,8 +178,8 @@ const VideoInfoLoader = (function () {
       userKey: data.comment.keys.userKey,
       hasOwnerThread: threads.find(t => t.isOwnerThread),
       when: null,
-      frontendId : env.frontendId,
-      frontendVersion : env.frontendVersion
+      frontendId,
+      frontendVersion
     };
 
     const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
