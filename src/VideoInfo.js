@@ -347,10 +347,6 @@ class VideoInfoModel {
     return !!(!this.isChannel && this._videoDetail.communityId);
   }
 
-  get isPremiumOnly() {
-    return !!this._videoDetail.isPremiumOnly;
-  }
-
   get isLiked() {
     return !!this._videoDetail.isLiked;
   }
