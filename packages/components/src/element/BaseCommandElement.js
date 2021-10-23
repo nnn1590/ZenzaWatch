@@ -75,17 +75,15 @@ class BaseCommandElement extends HTMLElement {
   }
 
   async render() {
-    if (!this._isConnected) {
-      return;
-    }
     const {render} = dll.lit || await this.constructor.importLit();
-    if (!this._shadow) {
-      this._shadow = this.attachShadow({mode: 'open'});
+    if (!this.shadowRoot) {
+      this.attachShadow({mode: 'open'});
     }
-    render(await this.constructor.getTemplate(this.state, this.props, this.events), this._shadow);
+    const tmpl = await this.constructor.getTemplate(this.state, this.props, this.events);
+    render(tmpl, this.shadowRoot, { isConnected: this._isConnected });
 
     if (!this._root) {
-      const root = this._shadow.querySelector('#root');
+      const root = this.shadowRoot.querySelector('#root');
       if (!root) {
         return;
       }
@@ -118,8 +116,7 @@ class BaseCommandElement extends HTMLElement {
       this._root = null;
     }
     const {render} = dll.lit || await this.constructor.importLit();
-    render('', this._shadow);
-    this._shadow = null;
+    render('', this.shadowRoot, { isConnected: this._isConnected });
   }
 
   attributeChangedCallback(attr, oldValue, newValue) {
