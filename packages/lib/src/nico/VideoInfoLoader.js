@@ -329,7 +329,7 @@ const VideoInfoLoader = (function () {
       _data,
       watchApiData,
       flvInfo,
-      dmcInfo: dmcInfo ?? {},
+      dmcInfo,
       msgInfo,
       playlist,
       isDmcOnly: true,
