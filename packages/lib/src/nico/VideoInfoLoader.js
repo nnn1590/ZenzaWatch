@@ -212,7 +212,6 @@ const VideoInfoLoader = (function () {
       return {
         _data: tag,
         isLocked,
-        isLockedBySystem: isLocked ? 1 : 0,
         isNicodicArticleExists,
         name,
       }
