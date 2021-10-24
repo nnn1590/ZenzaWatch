@@ -237,8 +237,9 @@ const VideoInfoLoader = (function () {
         // },
       } = { ...channel };
       channelInfo = {
-        icon_url: smallUrl ?? url ?? '',
+        iconUrl: smallUrl ?? url ?? undefined,
         id,
+        linkId: id,
         name,
       };
       channelId = id;
@@ -258,9 +259,10 @@ const VideoInfoLoader = (function () {
         // },
       } = { ...owner };
       uploaderInfo = {
-        icon_url: iconUrl,
+        iconUrl,
         id,
-        nickname,
+        linkId: `user/${id}`,
+        name: nickname,
       };
     }
 
