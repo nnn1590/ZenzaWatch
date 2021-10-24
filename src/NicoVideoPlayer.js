@@ -535,18 +535,15 @@ class ContextMenu extends BaseViewComponent {
       const handler = (command, param) => {
         this.emit('command', command, param);
       };
-      global.emitter.emitAsync('videoContextMenu.addonMenuReady',
-        view.find('.empty-area-top'), handler
-      );
-      global.emitter.emitAsync('videoContextMenu.addonMenuReady.list',
-        view.find('.listInner ul'), handler
-      );
-      global.emitter.emitResolve('videoContextMenu.addonMenuReady',
-        {container: view.find('.empty-area-top'), handler}
-      );
-      global.emitter.emitResolve('videoContextMenu.addonMenuReady.list',
-        {container: view.find('.listInner ul'), handler}
-      );
+      const ge = global.emitter; // emitAsync は互換用に残してる
+      const ctxtMenuReady = 'videoContextMenu.addonMenuReady';
+      ge.emitResolve(ctxtMenuReady,
+        {container: view.querySelector('.empty-area-top'), handler}
+      ).then(({container, handle}) => ge.emitAsync(ctxtMenuReady, container, handle));
+      const ctxtMenuListReady = 'videoContextMenu.addonMenuReady.list';
+      ge.emitResolve(ctxtMenuListReady,
+        {container: view.querySelector('.listInner ul'), handler}
+      ).then(({container, handle}) => ge.emitAsync(ctxtMenuListReady, container, handle));
     }
   }
 }
