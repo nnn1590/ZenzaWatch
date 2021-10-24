@@ -663,7 +663,7 @@ interval: ${config.interval}        // マスクの更新間隔
       ZenzaDetector.detect().then(zen => {
         console.log('ZenzaWatch found ver.%s', zen.version);
         ZenzaWatch = zen;
-        ZenzaWatch.emitter.promise('videoControBar.addonMenuReady').then(({container}) => {
+        ZenzaWatch.emitter.promise('videoControlBar.addonMenuReady').then(({container}) => {
           container.append(createToggleButton(config, dialog));
         });
         ZenzaWatch.emitter.promise('videoContextMenu.addonMenuReady.list').then(({container}) => {

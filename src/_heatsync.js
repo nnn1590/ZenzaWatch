@@ -1038,10 +1038,10 @@ import {ZenzaDetector} from '../packages/components/src/util/ZenzaDetector';
         toggleButton.refresh();
       };
       if (ZenzaWatch.emitter.promise) {
-        const {container, handler} = await ZenzaWatch.emitter.promise('videoControBar.addonMenuReady');
+        const {container, handler} = await ZenzaWatch.emitter.promise('videoControlBar.addonMenuReady');
         initButton(container, handler);
       } else {
-        ZenzaWatch.emitter.on('videoControBar.addonMenuReady', initButton);
+        ZenzaWatch.emitter.on('videoControlBar.addonMenuReady', initButton);
       }
     };
 

@@ -2550,7 +2550,7 @@ AntiPrototypeJs().then(() => {
     })();
 
     const initDebug = ({hlsConfig, html, render, ZenzaWatch}) => {
-      ZenzaWatch.emitter.promise('videoControBar.addonMenuReady').then(({container}) => {
+      ZenzaWatch.emitter.promise('videoControlBar.addonMenuReady').then(({container}) => {
         const div = html`<div class="command controlButton" data-command="toggleHLSDebug">
             <div class="controlButtonInner">hls</div>
           </div>`;

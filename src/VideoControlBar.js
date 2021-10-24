@@ -458,12 +458,19 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
       const [view] = this._$view;
       const handler = (command, param) => this.emit('command', command, param);
       const ge = global.emitter; // emitAsync は互換用に残してる
-      ge.emitResolve('videoControBar.addonMenuReady',
+      const ctrlBarReady = 'videoControlBar.addonMenuReady';
+      const ctrBarReady = 'videoControBar.addonMenuReady'; // videoConto`l'Barのtypo
+      ge.emitResolve(ctrlBarReady,
         {container: view.querySelector('.controlItemContainer.left .scalingUI'), handler}
-      ).then(({container, handler}) => ge.emitAsync('videoControBar.addonMenuReady', container, handler));
-      ge.emitResolve('seekBar.addonMenuReady',
+      ).then((body) => ge.emitResolve(ctrBarReady, body))
+        .then(({container, handler}) => {
+          ge.emitAsync(ctrlBarReady, container, handler);
+          ge.emitAsync(ctrBarReady, container, handler);
+        });
+      const seekBarReady = 'seekBar.addonMenuReady';
+      ge.emitResolve(seekBarReady,
         {container: view.querySelector('.seekBar'), handler}
-      ).then(({container, handle}) => ge.emitAsync('seekBar.addonMenuReady', container, handle));
+      ).then(({container, handle}) => ge.emitAsync(seekBarReady, container, handle));
     }
     get currentTime() {
       return this._currentTime;
