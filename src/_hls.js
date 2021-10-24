@@ -2558,11 +2558,11 @@ AntiPrototypeJs().then(() => {
           .controlButton[data-command=toggleHLSDebug] {
             font-family: Avenir;
           }`, {className: 'ZenzaHLS'});
-        container.append(div.getTemplateElement().content);
+        render(div, container);
       });
       ZenzaWatch.emitter.promise('videoContextMenu.addonMenuReady.list').then(({container}) => {
         const li = html`<li class="command" data-command="toggleHLSDebug">HLS設定</li>`;
-        container.append(li.getTemplateElement().content);
+        render(li, container);
       });
 
       ZenzaWatch.emitter.once('command-toggleHLSDebug', () => {
