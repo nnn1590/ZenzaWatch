@@ -1,5 +1,5 @@
 import {ShadowDancer} from '../ShadowDancer/ShadowDancer';
-import {html, render} from 'lit-html';
+import {html, render} from 'lit/html.js';
 //===BEGIN===
 
 class Shuriken extends ShadowDancer {

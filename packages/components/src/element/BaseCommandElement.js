@@ -1,7 +1,7 @@
-// import {html, render} from 'lit-html';
-// import * as lit from 'https://unpkg.com/lit-html?module'; //https://cdn.jsdelivr.net/npm/lit-html@0.9.0/lit-html.min.js';
-import * as lit from '../../../../node_modules/lit-html/lit-html.js';
-// import * as lit from 'https://unpkg.com/lit-html?module'; //'https://cdn.jsdelivr.net/npm/lit-html@1.1.0/lit-html.min.js';
+// import {html, render} from 'lit/html.js';
+// import * as lit from 'https://unpkg.com/lit?module'; //https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
+import * as lit from '../../../../node_modules/lit/html.js';
+// import * as lit from 'https://unpkg.com/lit?module'; //'https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
 // const {html, render} = lit;
 const dll = {lit};
 import {util} from '../util/util.js';
@@ -21,7 +21,7 @@ class BaseCommandElement extends HTMLElement {
     if (dll.lit) {
       return dll.lit;
     }
-    dll.lit = await util.dimport('https://unpkg.com/lit-html?module');
+    dll.lit = await util.dimport('https://unpkg.com/lit?module');
     return dll.lit;
   }
 
@@ -75,17 +75,15 @@ class BaseCommandElement extends HTMLElement {
   }
 
   async render() {
-    if (!this._isConnected) {
-      return;
-    }
     const {render} = dll.lit || await this.constructor.importLit();
-    if (!this._shadow) {
-      this._shadow = this.attachShadow({mode: 'open'});
+    if (!this.shadowRoot) {
+      this.attachShadow({mode: 'open'});
     }
-    render(await this.constructor.getTemplate(this.state, this.props, this.events), this._shadow);
+    const tmpl = await this.constructor.getTemplate(this.state, this.props, this.events);
+    render(tmpl, this.shadowRoot, { isConnected: this._isConnected });
 
     if (!this._root) {
-      const root = this._shadow.querySelector('#root');
+      const root = this.shadowRoot.querySelector('#root');
       if (!root) {
         return;
       }
@@ -118,8 +116,7 @@ class BaseCommandElement extends HTMLElement {
       this._root = null;
     }
     const {render} = dll.lit || await this.constructor.importLit();
-    render('', this._shadow);
-    this._shadow = null;
+    render('', this.shadowRoot, { isConnected: this._isConnected });
   }
 
   attributeChangedCallback(attr, oldValue, newValue) {
