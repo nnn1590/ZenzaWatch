@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.2-fix-playlist.7
+// @version        2.6.3-fix-playlist.8
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.2-fix-playlist.7';
+    var VER = '2.6.3-fix-playlist.8';
     const ENV = 'DEV';
 
 
@@ -1604,10 +1604,10 @@ const uq = uQuery;
       state: {},
       dll
     };
-    Promise.all([//https://unpkg.com/lit-html@1.1.2/lit-html.js?module
-      dimport('https://unpkg.com/lit-html@1.1.2/lit-html.js?module'),
-      dimport('https://unpkg.com/lit-html@1.1.2/directives/repeat?module'),
-      dimport('https://unpkg.com/lit-html@1.1.2/directives/class-map?module')
+    Promise.all([//https://unpkg.com/lit@2.0.2/html.js?module
+      dimport('https://unpkg.com/lit@2.0.2/html.js?module'),
+      dimport('https://unpkg.com/lit@2.0.2/directives/repeat?module'),
+      dimport('https://unpkg.com/lit@2.0.2/directives/class-map?module')
     ]).then(([lit, ...directives]) => {
       dll.lit = lit;
       dll.directives = Object.assign({}, ...directives);
@@ -4305,7 +4305,7 @@ class BaseCommandElement extends HTMLElement {
 		if (dll.lit) {
 			return dll.lit;
 		}
-		dll.lit = await util.dimport('https://unpkg.com/lit-html?module');
+		dll.lit = await util.dimport('https://unpkg.com/lit?module');
 		return dll.lit;
 	}
 	static get observedAttributes() {
@@ -4350,16 +4350,14 @@ class BaseCommandElement extends HTMLElement {
 		return props;
 	}
 	async render() {
-		if (!this._isConnected) {
-			return;
-		}
 		const {render} = dll.lit || await this.constructor.importLit();
-		if (!this._shadow) {
-			this._shadow = this.attachShadow({mode: 'open'});
+		if (!this.shadowRoot) {
+			this.attachShadow({mode: 'open'});
 		}
-		render(await this.constructor.getTemplate(this.state, this.props, this.events), this._shadow);
+		const tmpl = await this.constructor.getTemplate(this.state, this.props, this.events);
+		render(tmpl, this.shadowRoot, { isConnected: this._isConnected });
 		if (!this._root) {
-			const root = this._shadow.querySelector('#root');
+			const root = this.shadowRoot.querySelector('#root');
 			if (!root) {
 				return;
 			}
@@ -4389,8 +4387,7 @@ class BaseCommandElement extends HTMLElement {
 			this._root = null;
 		}
 		const {render} = dll.lit || await this.constructor.importLit();
-		render('', this._shadow);
-		this._shadow = null;
+		render('', this.shadowRoot, { isConnected: this._isConnected });
 	}
 	attributeChangedCallback(attr, oldValue, newValue) {
 		attr = attr.startsWith('data-') ? this.constructor.toPropName(attr) : attr;
@@ -6287,128 +6284,88 @@ const CacheStorage = (() => {
 })();
 const VideoInfoLoader = (function () {
 	const cacheStorage = new CacheStorage(sessionStorage);
-	const parseFromGinza = function (dom) {
-		try {
-			let watchApiData = JSON.parse(dom.querySelector('#watchAPIDataContainer').textContent);
-			let videoId = watchApiData.videoDetail.id;
-			let hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
-			let flvInfo = textUtil.parseQuery(
-				decodeURIComponent(watchApiData.flashvars.flvInfo)
-			);
-			let dmcInfo = JSON.parse(
-				decodeURIComponent(watchApiData.flashvars.dmcInfo || '{}')
-			);
-			let thumbnail =
-				watchApiData.flashvars.thumbImage +
-				(hasLargeThumbnail ? '.L' : '');
-			let videoUrl = flvInfo.url ? flvInfo.url : '';
-			let isEco = /\d+\.\d+low$/.test(videoUrl);
-			let isFlv = /\/smile\?v=/.test(videoUrl);
-			let isMp4 = /\/smile\?m=/.test(videoUrl);
-			let isSwf = /\/smile\?s=/.test(videoUrl);
-			let isDmc = watchApiData.flashvars.isDmc === 1 && dmcInfo.movie.session;
-			let csrfToken = watchApiData.flashvars.csrfToken;
-			let playlistToken = watchApiData.playlistToken;
-			let watchAuthKey = watchApiData.flashvars.watchAuthKey;
-			let seekToken = watchApiData.flashvars.seek_token;
-			let threads = [];
-			let msgInfo = {
-				server: flvInfo.ms,
-				threadId: flvInfo.thread_id * 1,
-				duration: flvInfo.l,
-				userId: flvInfo.user_id,
-				isNeedKey: flvInfo.needs_key === '1',
-				optionalThreadId: flvInfo.optional_thread_id,
-				defaultThread: {id: flvInfo.thread_id * 1},
-				optionalThreads: [],
-				layers: [],
-				threads,
-				userKey: flvInfo.userkey,
-				hasOwnerThread: !!watchApiData.videoDetail.has_owner_thread,
-				when: null
-			};
-			if (msgInfo.hasOwnerThread) {
-				threads.push({
-					id: flvInfo.thread_id * 1,
-					isThreadkeyRequired: flvInfo.needs_key === '1',
-					isDefaultPostTarget: false,
-					fork: 1,
-					isActive: true,
-					label: 'owner'
-				});
-			}
-			threads.push({
-				id: flvInfo.thread_id * 1,
-				isThreadkeyRequired: flvInfo.needs_key === '1',
-				isDefaultPostTarget: true,
-				isActive: true,
-				label: flvInfo.needs_key === '1' ? 'community' : 'default'
-			});
-			let playlist =
-				JSON.parse(dom.querySelector('#playlistDataContainer').textContent);
-			const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
-			const isPlayable = isDmc || (isMp4 && !isSwf && (videoUrl.indexOf('http') === 0));
-			cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
-			dmcInfo.quality = {
-				audios: (dmcInfo.movie.session || {audios: []}).audios.map(id => {return {id, available: true, bitrate: 64000};}),
-				videos: (dmcInfo.movie.session || {videos: []}).videos.reverse()
-				.map((id, level_index) => { return {
-					id,
-					available: true,
-					level_index,
-					bitrate: parseInt(id.replace(/^.*_(\d+)kbps.*/, '$1')) * 1000
-				};})
-				.reverse()
-			};
-			let result = {
-				_format: 'watchApi',
-				watchApiData,
-				flvInfo,
-				dmcInfo,
-				msgInfo,
-				playlist,
-				isDmcOnly: isPlayable && !isPlayableSmile,
-				isPlayable,
-				isMp4,
-				isFlv,
-				isSwf,
-				isEco,
-				isDmc,
-				thumbnail,
-				csrfToken,
-				playlistToken,
-				watchAuthKey,
-				seekToken
-			};
-			emitter.emitAsync('csrfTokenUpdate', csrfToken);
-			return result;
-		} catch (e) {
-			window.console.error('error: parseFromGinza ', e);
-			return null;
-		}
-	};
 	const parseFromHtml5Watch = function (dom) {
 		const watchDataContainer = dom.querySelector('#js-initial-watch-data');
-		const data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
-		const env = JSON.parse(watchDataContainer.getAttribute('data-environment'));
-		const videoId = data.video.id;
+		const {
+			frontendId,
+			frontendVersion,
+			playlistToken, //項目は残ってるけど値は出なくなってる
+		} = JSON.parse(watchDataContainer.getAttribute('data-environment'));
+		const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
+		const {
+			context = {}, // contextがない
+			thread = {}, // threadがない
+			channel, // nullable
+			client: {
+				watchId,
+			},
+			comment: {
+				keys: {
+					userKey,
+				},
+				layers,
+				ng: {
+					channel: channelNg,
+					owner: ownerNg,
+				},
+				server: {
+					url: commentServer,
+				},
+				threads,
+			},
+			community, // nullable
+			external: {
+				commons: {
+					hasContentTree,
+				},
+			},
+			media: {
+				delivery: dmcInfo, // nullable
+			},
+			owner, // nullable
+			payment: {
+				video: {
+					isAdmission: isMemberOnly,
+					isPpv: isNeedPayment,
+					isPremium: isPremiumOnly,
+				},
+			},
+			player: {
+				initialPlayback, // nullable
+			},
+			series,
+			tag: {
+				items: tags,
+			},
+			video: {
+				dmcInfo: videoDmcInfo = {}, // dmcInfoがない
+				smileInfo: flvInfo = {}, // smileInfoがない
+				flvInfo: {
+					url: videoUrl = '',
+				} = flvInfo,
+				count: {
+					comment: commentCount,
+					like: likeCount,
+					mylist: mylistCount,
+					view: viewCount,
+				},
+				description,
+				duration,
+				id: videoId,
+				registeredAt,
+				thumbnail: {
+					largeUrl: thumbnailUrl, // null
+					url: thumbnail,
+					player: largeThumbnail,
+				},
+				title,
+				viewer: videoStatusForViewer, // nullable
+			},
+			viewer, // nullable
+		} = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
 		const hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
-		const flvInfo = data.video.smileInfo || {};
-		const dmcInfo = data.media.delivery || {};
-		const thumbnail = data.video.thumbnail.largeUrl;
-		const videoUrl = flvInfo.url ? flvInfo.url : '';
-		const isEco = /\d+\.\d+low$/.test(videoUrl);
-		const isFlv = /\/smile\?v=/.test(videoUrl);
-		const isMp4 = /\/smile\?m=/.test(videoUrl);
-		const isSwf = /\/smile\?s=/.test(videoUrl);
-		const isDmc = !!dmcInfo && !!dmcInfo.movie.session;
 		const csrfToken = null;
 		const watchAuthKey = null;
-		const playlistToken = env.playlistToken; //項目は残ってるけど値は出なくなってる
-		const context = data.context;
-		const commentComposite = data.comment;
-		const threads = commentComposite.threads.map(t => Object.assign({}, t));
-		const layers  = commentComposite.layers.map(t => Object.assign({}, t));
 		layers.forEach(layer => {
 			layer.threadIds.forEach(({id, fork}) => {
 				threads.forEach(thread => {
@@ -6418,116 +6375,128 @@ const VideoInfoLoader = (function () {
 				});
 			});
 		});
+		const resumeInfo = (() => {
+			const {
+				type = '',
+				positionSec = null,
+			} = { ...initialPlayback };
+			return {
+				initialPlaybackType: type,
+				initialPlaybackPosition: positionSec ?? 0,
+			};
+		})();
+		const isLiked = videoStatusForViewer?.like.isLiked ?? false;
+		const viewerInfo = (() => {
+			const {
+				id = 0,
+				isPremium = false,
+			} = { ...viewer };
+			return { id, isPremium };
+		})();
 		const linkedChannelVideo = false;
-		const isNeedPayment = false;
 		const defaultThread = threads.find(t => t.isDefaultPostTarget);
 		const msgInfo = {
-			server: commentComposite.server.url,
-			threadId: defaultThread ? defaultThread.id : (data.thread.ids.community || data.thread.ids.default),
-			duration: data.video.duration,
-			userId: data.viewer ? data.viewer.id : 0,
+			server: commentServer,
+			threadId: defaultThread ? defaultThread.id : (thread.ids && (thread.ids.community || thread.ids.default)),
+			duration,
+			userId: viewerInfo.id,
 			isNeedKey: threads.findIndex(t => t.isThreadkeyRequired) >= 0, // (isChannel || isCommunity)
 			optionalThreadId: '',
 			defaultThread,
 			optionalThreads: threads.filter(t => t.id !== defaultThread.id) || [],
 			threads,
-			userKey: data.comment.keys.userKey,
+			userKey,
 			hasOwnerThread: threads.find(t => t.isOwnerThread),
 			when: null,
-			frontendId : env.frontendId,
-			frontendVersion : env.frontendVersion
+			frontendId,
+			frontendVersion
 		};
-		const isPlayableSmile = isMp4 && !isSwf && (videoUrl.indexOf('http') === 0);
-		const isPlayable = isDmc || (isMp4 && !isSwf && (videoUrl.indexOf('http') === 0));
+		const isPlayable = !!dmcInfo?.movie.session;
 		cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
 		const playlist = {playlist: []};
-		const tagList = [];
-		data.tag.items.forEach(t => {
-			tagList.push({
-				_data: t,
-				name: t.name,
-				isNicodicArticleExists: t.isNicodicArticleExists,
-				isLocked: t.isLocked, // 形式が統一されてない悲しみを吸収
-				isLockedBySystem: t.isLocked ? 1 : 0
-			});
+		const tagList = tags.map(tag => {
+			const {
+				isLocked,
+				isNicodicArticleExists,
+				name,
+			} = tag;
+			return {
+				_data: tag,
+				isLocked,
+				isNicodicArticleExists,
+				name,
+			}
 		});
-		/*
-			FLASHは廃止になりました
-			data.tag.items.forEach(t => {
-				tagList.push({
-					_data: t,
-					id: t.id,
-					tag: t.name,
-					dic: t.isNicodicArticleExists,
-					lock: t.isLocked, // 形式が統一されてない悲しみを吸収
-					owner_lock: t.isLocked ? 1 : 0,
-					lck: t.isLocked ? '1' : '0',
-					cat: t.isCategory
-				});
-			});
-		*/
-		let channelInfo = null, channelId = null;
-		if (data.channel) {
+		let channelInfo, channelId, uploaderInfo = null;
+		if (channel) {
+			const {
+				id,
+				name,
+				thumbnail: {
+					smallUrl,
+					url,
+				},
+			} = { ...channel };
 			channelInfo = {
-				icon_url: data.channel.thumbnail.smallUrl || '',
-				id: data.channel.id,
-				name: data.channel.name,
-				is_favorited: data.channel.isFavorited ? 1 : 0
+				iconUrl: smallUrl ?? url ?? undefined,
+				id,
+				linkId: id,
+				name,
 			};
-			channelId = channelInfo.id;
+			channelId = id;
 		}
-		let uploaderInfo = null;
-		if (data.owner) {
+		if (owner) {
+			const {
+				iconUrl,
+				id,
+				nickname,
+			} = { ...owner };
 			uploaderInfo = {
-				icon_url: data.owner.iconUrl,
-				id: data.owner.id,
-				nickname: data.owner.nickname,
-				is_favorited: data.owner.isFavorited,
-				isMyVideoPublic: data.owner.isUserMyVideoPublic
+				iconUrl,
+				id,
+				linkId: `user/${id}`,
+				name: nickname,
 			};
 		}
 		const watchApiData = {
 			videoDetail: {
-				v: data.client.watchId,
-				id: data.video.id,
-				title: data.video.title,
-				title_original: data.video.originalTitle,
-				description: data.video.description,
-				description_original: data.video.originalDescription,
-				postedAt: new Date(data.video.registeredAt).toLocaleString(),
-				thumbnail: data.video.thumbnail.url,
-				largeThumbnail: data.video.thumbnail.player,
-				length: data.video.duration,
-				commons_tree_exists: !!data.external.commons.hasContentTree,
-				width: data.video.width,
-				height: data.video.height,
-				isChannel: data.channel && data.channel.id,
+				v: watchId,
+				id: videoId,
+				title,
+				description,
+				postedAt: new Date(registeredAt).toLocaleString(),
+				thumbnail,
+				largeThumbnail,
+				length: duration,
+				commons_tree_exists: hasContentTree,
+				isChannel: channel && channel.id,
 				isMymemory: false,
-				communityId: data.community ? data.community.id : null,
-				isPremiumOnly: data.viewer ? data.viewer.isPremiumOnly : false,
-				isLiked: data.video.viewer ? data.video.viewer.like.isLiked : false,
+				communityId: community?.id ?? null,
+				isLiked,
 				channelId,
-				commentCount: data.video.count.comment,
-				mylistCount: data.video.count.mylist,
-				viewCount: data.video.count.view,
+				commentCount,
+				likeCount,
+				mylistCount,
+				viewCount,
 				tagList,
 			},
-			viewerInfo: {id: data.viewer ? data.viewer.id : 0},
+			viewerInfo,
 			channelInfo,
 			uploaderInfo
 		};
-		let ngFilters = null;
-		if (data.video && data.video.dmcInfo && data.video.dmcInfo.thread && data.video.dmcInfo.thread) {
-			if (data.video.dmcInfo.thread.channel_ng_words && data.video.dmcInfo.thread.channel_ng_words.length) {
-				ngFilters = data.video.dmcInfo.thread.channel_ng_words;
-			} else if (data.video.dmcInfo.thread.owner_ng_words && data.video.dmcInfo.thread.owner_ng_words.length) {
-				ngFilters = data.video.dmcInfo.thread.owner_ng_words;
+		let ngFilters = [];
+		if (videoDmcInfo && videoDmcInfo.thread) {
+			if (videoDmcInfo.thread.channel_ng_words && videoDmcInfo.thread.channel_ng_words.length) {
+				ngFilters = videoDmcInfo.thread.channel_ng_words;
+			} else if (videoDmcInfo.thread.owner_ng_words && videoDmcInfo.thread.owner_ng_words.length) {
+				ngFilters = videoDmcInfo.thread.owner_ng_words;
 			}
 		}
 		if (data.context && data.context.ownerNGList && data.context.ownerNGList.length) {
-			ngFilters = data.context.ownerNGList;
+			ngFilters = Array.prototype.concat(ngFilters, data.context.ownerNGList);
 		}
-		if (ngFilters && ngFilters.length) {
+		ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
+		if (ngFilters.length) {
 			const ngtmp = [];
 			ngFilters.forEach(ng => {
 				if (!ng.source || !ng.destination) { return; }
@@ -6538,39 +6507,36 @@ const VideoInfoLoader = (function () {
 		}
 		const result = {
 			_format: 'html5watchApi',
-			_data: data,
+			_data,
 			watchApiData,
 			flvInfo,
 			dmcInfo,
 			msgInfo,
 			playlist,
-			isDmcOnly: isPlayable && !isPlayableSmile,
+			isDmcOnly: true,
 			isPlayable,
-			isMp4,
-			isFlv,
-			isSwf,
-			isEco,
-			isDmc,
-			thumbnail,
+			isMp4: false,
+			isFlv: false,
+			isSwf: false,
+			isEco: false,
+			isDmc: isPlayable,
+			thumbnailUrl,
 			csrfToken,
 			watchAuthKey,
 			playlistToken,
-			series: data.series,
+			series,
+			isMemberOnly,
+			isPremiumOnly,
 			isNeedPayment,
 			linkedChannelVideo,
-			resumeInfo: {
-				initialPlaybackType: (data.player.initialPlayback? data.player.initialPlayback.type : ''),
-				initialPlaybackPosition: (data.player.initialPlayback? data.player.initialPlayback.positionSec : 0)
-			}
+			resumeInfo,
 		};
 		emitter.emitAsync('csrfTokenUpdate', csrfToken);
 		return result;
 	};
 	const parseWatchApiData = function (src) {
 		const dom = new DOMParser().parseFromString(src, 'text/html');
-		if (dom.querySelector('#watchAPIDataContainer')) {
-			return parseFromGinza(dom);
-		} else if (dom.querySelector('#js-initial-watch-data')) {
+		if (dom.querySelector('#js-initial-watch-data')) {
 			return parseFromHtml5Watch(dom);
 		} else if (dom.querySelector('#PAGEBODY .mb16p4 .font12')) {
 			return {
@@ -6625,29 +6591,42 @@ const VideoInfoLoader = (function () {
 		if (data.reject) {
 			return Promise.reject(data);
 		}
-		if (!data.isDmc && (data.isFlv && !data.isEco)) {
-			return Promise.reject({
-				reason: 'flv',
-				info: data,
-				message: 'この動画はZenzaWatchで再生できません(flv)'
-			});
+		if (data.isPlayable) {
+			emitter.emitAsync('loadVideoInfo', data, 'WATCH_API', watchId);
+			return Promise.resolve(data);
 		}
 		if (
-			!data.isPlayable &&
 			data.isNeedPayment &&
 			data.linkedChannelVideo &&
 			Config.getValue('loadLinkedChannelVideo')) {
 			return loadLinkedChannelVideoInfo(data);
 		}
-		if (!data.isPlayable) {
+		if (data.isPremiumOnly) {
 			return Promise.reject({
-				reason: 'not supported',
+				reason: 'premium only',
 				info: data,
-				message: 'この動画はZenzaWatchで再生できません'
+				message: 'この動画は有料です(プレミアム会員限定)'
 			});
 		}
-		emitter.emitAsync('loadVideoInfo', data, 'WATCH_API', watchId);
-		return Promise.resolve(data);
+		if (data.isMemberOnly) {
+			return Promise.reject({
+				reason: 'member only',
+				info: data,
+				message: 'この動画は有料です(CH会員限定)'
+			});
+		}
+		if (data.isNeedPayment) {
+			return Promise.reject({
+				reason: 'need payment',
+				info: data,
+				message: 'この動画は有料です'
+			});
+		}
+		return Promise.reject({
+			reason: 'not supported',
+			info: data,
+			message: 'この動画はZenzaWatchで再生できません'
+		});
 	};
 	const createSleep = function (sleepTime) {
 		return new Promise(resolve => setTimeout(resolve, sleepTime));
@@ -6829,7 +6808,7 @@ const MylistApiLoader = (() => {
 	const TOKEN_EXPIRE_TIME = 59 * 60 * 1000;
 	let cacheStorage = null;
 	let token = '';
-	if (ZenzaWatch) {
+	if (window.ZenzaWatch) {
 		emitter.on('csrfTokenUpdate', t => {
 			token = t;
 			if (cacheStorage) {
@@ -7690,7 +7669,6 @@ class VideoInfoModel {
 		this._cacheData = localCacheData;
 		this._watchApiData = info.watchApiData;
 		this._videoDetail = info.watchApiData.videoDetail;
-		this._flashvars = info.watchApiData.flashvars;   // flashに渡す情報
 		this._viewerInfo = info.viewerInfo;               // 閲覧者(＝おまいら)の情報
 		this._flvInfo = info.flvInfo;
 		this._msgInfo = info.msgInfo;
@@ -7804,9 +7782,6 @@ class VideoInfoModel {
 	get isCommunityVideo() {
 		return !!(!this.isChannel && this._videoDetail.communityId);
 	}
-	get isPremiumOnly() {
-		return !!this._videoDetail.isPremiumOnly;
-	}
 	get isLiked() {
 		return !!this._videoDetail.isLiked;
 	}
@@ -7838,33 +7813,37 @@ class VideoInfoModel {
 		return !!this._dmcInfo ? this._dmcInfo.storyboardInfo : null;
 	}
 	get owner() {
-		let ownerInfo;
 		if (this.isChannel) {
-			let c = this._watchApiData.channelInfo || {};
-			ownerInfo = {
-				icon: c.icon_url || 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
-				url: `https://ch.nicovideo.jp/ch${c.id}`,
-				id: c.id,
-				linkId: c.id ? `ch${c.id}` : '',
-				name: c.name,
-				favorite: c.is_favorited === 1, // こっちは01で
-				type: 'channel'
+			let {
+				iconUrl: icon = 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
+				id,
+				linkId = '',
+				name,
+			} = {...this._watchApiData.channelInfo};
+			return {
+				type: 'channel',
+				url: `https://ch.nicovideo.jp/${linkId}`,
+				icon,
+				id,
+				linkId,
+				name,
 			};
 		} else {
-			let u = this._watchApiData.uploaderInfo || {};
-			let f = this._flashvars || {};
-			ownerInfo = {
-				icon: u.icon_url || 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
-				url: u.id ? `//www.nicovideo.jp/user/${u.id}` : '#',
-				id: u.id || f.videoUserId || '',
-				linkId: u.id ? `user/${u.id}` : '',
-				name: u.nickname || '(非公開ユーザー)',
-				favorite: !!u.is_favorited, // こっちはbooleanという
+			let {
+				iconUrl: icon = 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
+				id,
+				linkId = '',
+				name = '(非公開ユーザー)',
+			} = {...this._watchApiData.uploaderInfo};
+			return {
 				type: 'user',
-				isMyVideoPublic: !!u.is_user_myvideo_public
+				url: id ? `https://www.nicovideo.jp/${linkId}` : '#',
+				icon,
+				id,
+				linkId,
+				name,
 			};
 		}
-		return ownerInfo;
 	}
 	get series() {
 		if (!this._rawData.series || !this._rawData.series.id) {
@@ -27303,19 +27282,8 @@ class TagListView extends BaseViewComponent {
 		let link = this._createLink(tagName);
 		let search = this._createSearch(tagName);
 		let data = textUtil.escapeHtml(JSON.stringify(tag));
-		let className = (tag.isLocked || tag.isLockedBySystem === 1 || tag.lck === '1')  ? 'tagItem is-Locked' : 'tagItem';
+		let className = tag.isLocked ? 'tagItem is-Locked' : 'tagItem';
 		return `<li class="${className}" data-tag="${data}" data-tag-id="${tagName}">${dic}${del}${link}${search}</li>`;
-	/*
-		let text = tag.tag;
-		let dic = this._createDicIcon(text, !!tag.dic);
-		let del = this._createDeleteButton(tag.tag);
-		let link = this._createLink(text);
-		let search = this._createSearch(text);
-		let data = textUtil.escapeHtml(JSON.stringify(tag));
-		let className = (tag.lock || tag.owner_lock === 1 || tag.lck === '1') ? 'tagItem is-Locked' : 'tagItem';
-		className = (tag.cat) ? `${className} is-Category` : className;
-		return `<li class="${className}" data-tag="${data}" data-tag-id="${tag.tag}">${dic}${del}${link}${search}</li>`;
-*/
 	}
 	_onTagInputKeyDown(e) {
 		if (this._state.isUpdating) {
@@ -32218,8 +32186,7 @@ const WatchInfoCacheDb = (() => {
 				typeof options.currentTime === 'number' && options.currentTime > 0 &&
 					(resume.unshift({now, time: options.currentTime}));
 				resume.length = Math.min(10, resume.length);
-				const ownerId = videoInfo && videoInfo.owner.id ?
-					`${videoInfo.isChannel? 'ch' : 'user/'}${videoInfo.owner.id}` : '';
+				const ownerId = videoInfo?.owner.linkId ?? '';
 				const comment = cache.comment || [];
 				options.comment && (comment.push(comment));
 				const record = {

@@ -22,7 +22,7 @@
 // @exclude        *://dic.nicovideo.jp/p/*
 // @grant          none
 // @author         segabito macmoto
-// @version        0.0.20 Another.1
+// @version        0.0.21-another.2
 // @noframes
 // @require        https://cdn.jsdelivr.net/npm/hls.js@latest
 // @run-at         document-start
@@ -3255,7 +3255,7 @@ const workerUtil = (() => {
       }).then(ZenzaWatch => {
 
         Promise.all([
-          dimport('https://unpkg.com/lit-html@1.1.2/lit-html.js?module')
+          dimport('https://unpkg.com/lit@2.0.2/html.js?module')
         ]).then(([{html, render}]) => {
           initDebug({hlsConfig, html, render, ZenzaWatch});
         });
