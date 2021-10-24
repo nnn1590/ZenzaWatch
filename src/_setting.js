@@ -38,37 +38,32 @@ const $ = uq;
     let panel;
 
     const __tpl__ = (`
-      <span class="openZenzaAdvancedSettingPanel"><span></span>ZenzaWatch上級者設定</span>
+      <button class="openZenzaAdvancedSettingPanel">ZenzaWatch上級者設定</button>
     `).trim();
 
     const __css__ = (`
       .openZenzaAdvancedSettingPanel {
-        display: inline-block;
-        position: absolute;
-        top: 30px;
-        right: 0;
-        padding: 2px 8px;
-        text-align: center;
-        background: #fff;
-        border: #ccc solid 1px;
-        color: #0033cc;
+        font-size: 12px;
+        border-radius: 4px;
+        -webkit-box-pack: justify;
+        -ms-flex-pack: justify;
+        justify-content: space-between;
+        -webkit-box-align: center;
+        -ms-flex-align: center;
+        align-items: center;
+        padding: 0 6px;
+        color: #555;
+        font-weight: 600;
+        text-align: right;
+        letter-spacing: .5px;
         cursor: pointer;
       }
-      .userDetail .openZenzaAdvancedSettingPanel {
-        top: 8px;
-        right: 148px;
+      .openZenzaAdvancedSettingPanel:hover {
+        background: #eee;
       }
 
       .openZenzaAdvancedSettingPanel:active {
         background: #ccc;
-      }
-
-      .openZenzaAdvancedSettingPanel span {
-        display: inline-block;
-        width: 10px;
-        height: 8px;
-        background: url(https://nicovideo.cdn.nimg.jp/uni/img/zero_my/icons.png) no-repeat;
-        background-position: -8px -141px;
       }
 
 
