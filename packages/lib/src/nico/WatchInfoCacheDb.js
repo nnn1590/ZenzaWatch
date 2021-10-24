@@ -58,8 +58,7 @@ const WatchInfoCacheDb = (() => {
         typeof options.currentTime === 'number' && options.currentTime > 0 &&
           (resume.unshift({now, time: options.currentTime}));
         resume.length = Math.min(10, resume.length);
-        const ownerId = videoInfo && videoInfo.owner.id ?
-          `${videoInfo.isChannel? 'ch' : 'user/'}${videoInfo.owner.id}` : '';
+        const ownerId = videoInfo?.owner.linkId ?? '';
 
         const comment = cache.comment || [];
         options.comment && (comment.push(comment));

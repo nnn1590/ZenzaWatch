@@ -196,7 +196,6 @@ class VideoInfoModel {
     this._cacheData = localCacheData;
     this._watchApiData = info.watchApiData;
     this._videoDetail = info.watchApiData.videoDetail;
-    this._flashvars = info.watchApiData.flashvars;   // flashに渡す情報
     this._viewerInfo = info.viewerInfo;               // 閲覧者(＝おまいら)の情報
     this._flvInfo = info.flvInfo;
     this._msgInfo = info.msgInfo;
@@ -391,35 +390,38 @@ class VideoInfoModel {
    * チャンネル動画かどうかで分岐
    */
   get owner() {
-    let ownerInfo;
     if (this.isChannel) {
-      let c = this._watchApiData.channelInfo || {};
-      ownerInfo = {
-        icon: c.icon_url || 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
-        url: `https://ch.nicovideo.jp/ch${c.id}`,
-        id: c.id,
-        linkId: c.id ? `ch${c.id}` : '',
-        name: c.name,
-        favorite: c.is_favorited === 1, // こっちは01で
-        type: 'channel'
+      let {
+        iconUrl: icon = 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
+        id,
+        linkId = '',
+        name,
+      } = {...this._watchApiData.channelInfo};
+      return {
+        type: 'channel',
+        url: `https://ch.nicovideo.jp/${linkId}`,
+        icon,
+        id,
+        linkId,
+        name,
       };
     } else {
       // 退会しているユーザーだと空になっている
-      let u = this._watchApiData.uploaderInfo || {};
-      let f = this._flashvars || {};
-      ownerInfo = {
-        icon: u.icon_url || 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
-        url: u.id ? `//www.nicovideo.jp/user/${u.id}` : '#',
-        id: u.id || f.videoUserId || '',
-        linkId: u.id ? `user/${u.id}` : '',
-        name: u.nickname || '(非公開ユーザー)',
-        favorite: !!u.is_favorited, // こっちはbooleanという
+      let {
+        iconUrl: icon = 'https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank.jpg',
+        id,
+        linkId = '',
+        name = '(非公開ユーザー)',
+      } = {...this._watchApiData.uploaderInfo};
+      return {
         type: 'user',
-        isMyVideoPublic: !!u.is_user_myvideo_public
+        url: id ? `https://www.nicovideo.jp/${linkId}` : '#',
+        icon,
+        id,
+        linkId,
+        name,
       };
     }
-
-    return ownerInfo;
   }
 
   get series() {
