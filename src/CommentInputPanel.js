@@ -45,8 +45,8 @@ class CommentInputPanel extends Emitter {
       .on('keyup', preventEsc);
 
     $autoPause.prop('checked', config.props.autoPauseCommentInput);
-    this._$autoPause.on('change', () => {
-      config.props.autoPauseCommentInput = !!$autoPause.prop('checked');
+    this._$autoPause.on('change', (ev) => {
+      config.props.autoPauseCommentInput = ev.target.checked;
       $cmt.focus();
     });
     this._$view.find('label').on('click', e => e.stopPropagation());
