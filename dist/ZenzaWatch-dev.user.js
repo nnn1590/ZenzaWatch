@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.8
+// @version        2.6.3-fix-playlist.9
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.8';
+    var VER = '2.6.3-fix-playlist.9';
     const ENV = 'DEV';
 
 
@@ -26750,8 +26750,8 @@ class CommentInputPanel extends Emitter {
 			.on('keydown', preventEsc)
 			.on('keyup', preventEsc);
 		$autoPause.prop('checked', config.props.autoPauseCommentInput);
-		this._$autoPause.on('change', () => {
-			config.props.autoPauseCommentInput = !!$autoPause.prop('checked');
+		this._$autoPause.on('change', (ev) => {
+			config.props.autoPauseCommentInput = ev.target.checked;
 			$cmt.focus();
 		});
 		this._$view.find('label').on('click', e => e.stopPropagation());
