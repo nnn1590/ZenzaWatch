@@ -201,19 +201,24 @@ CommentInputPanel.__css__ = (`
   }
 
   .commentInputPanel .autoPauseLabel {
-    display: none;
-  }
-
-  .commentInputPanel:focus-within .autoPauseLabel {
     position: absolute;
-    top: 36px;
+    width: 145px;
+    height: 21px !important;
+    font-size: 13px;
+    top: 9px;
     left: 50%;
     transform: translate(-50%, 0);
-    display: block;
     background: #336;
-    z-index: 100;
+    z-index: -1;
+    opacity: 0;
+    transition: top 0.2s ease, opacity 0.2s ease;
+    text-align: center;
     color: #ccc;
-    padding: 0 8px;
+  }
+  .commentInputPanel:focus-within .autoPauseLabel {
+    top: 36px;
+    z-index: 100;
+    opacity: 1;
   }
 
   .commandInput {
