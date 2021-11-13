@@ -163,7 +163,7 @@ const MylistApiLoader = (() => {
       const items = await this._getDeflistItems().catch(() => []);
 
       for (let item of items) {
-        if (item.itemId === watchId) {
+        if (item.watchId === watchId) {
           return item;
         }
       }
@@ -173,7 +173,7 @@ const MylistApiLoader = (() => {
       const items = await this._getMylistItems(groupId).catch(() => []);
 
       for (let item of items) {
-        if (item.itemId === watchId) {
+        if (item.watchId === watchId) {
           return item;
         }
       }
@@ -192,7 +192,7 @@ const MylistApiLoader = (() => {
       
       const url = 'https://www.nicovideo.jp/api/deflist/delete';
       //const body = `id_list[0][]=${item.item_Id}&token=${token}`;
-      const body = `id_list[0][]=${item.watchId}&token=${token}`;
+      const body = `id_list[0][]=${item.itemId}&token=${token}`;
       const cacheKey = 'deflistItems';
       const req = {
         method: 'POST',
@@ -230,7 +230,7 @@ const MylistApiLoader = (() => {
 
       const url = 'https://www.nicovideo.jp/api/mylist/delete';
       window.console.log('delete item:', item);
-      const body = 'id_list[0][]=' + item.item_id + '&token=' + token + '&group_id=' + groupId;
+      const body = 'id_list[0][]=' + item.itemId + '&token=' + token + '&group_id=' + groupId;
       const cacheKey = `mylistItems: ${groupId}`;
 
       const result = await netUtil.fetch(url, {
