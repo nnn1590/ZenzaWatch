@@ -26,7 +26,7 @@
 // @exclude     *://dic.nicovideo.jp/p/*
 // @exclude     *://ext.nicovideo.jp/thumb/*
 // @exclude     *://ext.nicovideo.jp/thumb_channel/*
-// @version     0.5.15-fix-mylist-api.2
+// @version     0.5.15-fix-mylist-api.3
 // @grant       none
 // @author      segabito macmoto
 // @license     public domain
@@ -3781,7 +3781,7 @@ const MylistApiLoader = (() => {
 		async findDeflistItemByWatchId(watchId) {
 			const items = await this._getDeflistItems().catch(() => []);
 			for (let item of items) {
-				if (item.itemId === watchId) {
+				if (item.watchId === watchId) {
 					return item;
 				}
 			}
@@ -3790,7 +3790,7 @@ const MylistApiLoader = (() => {
 		async findMylistItemByWatchId(watchId, groupId) {
 			const items = await this._getMylistItems(groupId).catch(() => []);
 			for (let item of items) {
-				if (item.itemId === watchId) {
+				if (item.watchId === watchId) {
 					return item;
 				}
 			}
@@ -3804,7 +3804,7 @@ const MylistApiLoader = (() => {
 					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
 			});
 			const url = 'https://www.nicovideo.jp/api/deflist/delete';
-			const body = `id_list[0][]=${item.watchId}&token=${token}`;
+			const body = `id_list[0][]=${item.itemId}&token=${token}`;
 			const cacheKey = 'deflistItems';
 			const req = {
 				method: 'POST',
@@ -3836,7 +3836,7 @@ const MylistApiLoader = (() => {
 				});
 			const url = 'https://www.nicovideo.jp/api/mylist/delete';
 			window.console.log('delete item:', item);
-			const body = 'id_list[0][]=' + item.item_id + '&token=' + token + '&group_id=' + groupId;
+			const body = 'id_list[0][]=' + item.itemId + '&token=' + token + '&group_id=' + groupId;
 			const cacheKey = `mylistItems: ${groupId}`;
 			const result = await netUtil.fetch(url, {
 				method: 'POST',

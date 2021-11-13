@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.9
+// @version        2.6.3-fix-playlist.10
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.9';
+    var VER = '2.6.3-fix-playlist.10';
     const ENV = 'DEV';
 
 
@@ -6928,7 +6928,7 @@ const MylistApiLoader = (() => {
 		async findDeflistItemByWatchId(watchId) {
 			const items = await this._getDeflistItems().catch(() => []);
 			for (let item of items) {
-				if (item.itemId === watchId) {
+				if (item.watchId === watchId) {
 					return item;
 				}
 			}
@@ -6937,7 +6937,7 @@ const MylistApiLoader = (() => {
 		async findMylistItemByWatchId(watchId, groupId) {
 			const items = await this._getMylistItems(groupId).catch(() => []);
 			for (let item of items) {
-				if (item.itemId === watchId) {
+				if (item.watchId === watchId) {
 					return item;
 				}
 			}
@@ -6951,7 +6951,7 @@ const MylistApiLoader = (() => {
 					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
 			});
 			const url = 'https://www.nicovideo.jp/api/deflist/delete';
-			const body = `id_list[0][]=${item.watchId}&token=${token}`;
+			const body = `id_list[0][]=${item.itemId}&token=${token}`;
 			const cacheKey = 'deflistItems';
 			const req = {
 				method: 'POST',
@@ -6983,7 +6983,7 @@ const MylistApiLoader = (() => {
 				});
 			const url = 'https://www.nicovideo.jp/api/mylist/delete';
 			window.console.log('delete item:', item);
-			const body = 'id_list[0][]=' + item.item_id + '&token=' + token + '&group_id=' + groupId;
+			const body = 'id_list[0][]=' + item.itemId + '&token=' + token + '&group_id=' + groupId;
 			const cacheKey = `mylistItems: ${groupId}`;
 			const result = await netUtil.fetch(url, {
 				method: 'POST',
@@ -26892,18 +26892,24 @@ CommentInputPanel.__css__ = (`
 		box-shadow: 0 0 8px #fff;
 	}
 	.commentInputPanel .autoPauseLabel {
-		display: none;
-	}
-	.commentInputPanel:focus-within .autoPauseLabel {
 		position: absolute;
-		top: 36px;
+		width: 145px;
+		height: 21px !important;
+		font-size: 13px;
+		top: 9px;
 		left: 50%;
 		transform: translate(-50%, 0);
-		display: block;
 		background: #336;
-		z-index: 100;
+		z-index: -1;
+		opacity: 0;
+		transition: top 0.2s ease, opacity 0.2s ease;
+		text-align: center;
 		color: #ccc;
-		padding: 0 8px;
+	}
+	.commentInputPanel:focus-within .autoPauseLabel {
+		top: 36px;
+		z-index: 100;
+		opacity: 1;
 	}
 	.commandInput {
 		position: absolute;
