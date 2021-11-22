@@ -281,8 +281,8 @@ const VideoInfoLoader = (function () {
 
         commons_tree_exists: hasContentTree,
 
-        // width: data.video.width,
-        // height: data.video.height,
+        // width: data.video.width, // dmcInfo?.movie.videos[0].metadata.resolution.width
+        // height: data.video.height, // dmcInfo?.movie.videos[0].metadata.resolution.height
 
         isChannel: channel && channel.id,
         isMymemory: false,
@@ -302,20 +302,7 @@ const VideoInfoLoader = (function () {
       uploaderInfo
     };
 
-    let ngFilters = [];
-    if (videoDmcInfo && videoDmcInfo.thread) {
-      if (videoDmcInfo.thread.channel_ng_words && videoDmcInfo.thread.channel_ng_words.length) {
-        ngFilters = videoDmcInfo.thread.channel_ng_words;
-      } else if (videoDmcInfo.thread.owner_ng_words && videoDmcInfo.thread.owner_ng_words.length) {
-        ngFilters = videoDmcInfo.thread.owner_ng_words;
-      }
-    }
-    if (data.context && data.context.ownerNGList && data.context.ownerNGList.length) {
-      ngFilters = Array.prototype.concat(ngFilters, data.context.ownerNGList);
-    }
-
-    ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
-
+    let ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
     if (ngFilters.length) {
       const ngtmp = [];
       ngFilters.forEach(ng => {
