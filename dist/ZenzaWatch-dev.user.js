@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.10
+// @version        2.6.3-fix-playlist.11
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.10';
+    var VER = '2.6.3-fix-playlist.11';
     const ENV = 'DEV';
 
 
@@ -6484,18 +6484,7 @@ const VideoInfoLoader = (function () {
 			channelInfo,
 			uploaderInfo
 		};
-		let ngFilters = [];
-		if (videoDmcInfo && videoDmcInfo.thread) {
-			if (videoDmcInfo.thread.channel_ng_words && videoDmcInfo.thread.channel_ng_words.length) {
-				ngFilters = videoDmcInfo.thread.channel_ng_words;
-			} else if (videoDmcInfo.thread.owner_ng_words && videoDmcInfo.thread.owner_ng_words.length) {
-				ngFilters = videoDmcInfo.thread.owner_ng_words;
-			}
-		}
-		if (data.context && data.context.ownerNGList && data.context.ownerNGList.length) {
-			ngFilters = Array.prototype.concat(ngFilters, data.context.ownerNGList);
-		}
-		ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
+		let ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
 		if (ngFilters.length) {
 			const ngtmp = [];
 			ngFilters.forEach(ng => {
