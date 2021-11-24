@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.11
+// @version        2.6.3-fix-playlist.12
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.11';
+    var VER = '2.6.3-fix-playlist.12';
     const ENV = 'DEV';
 
 
@@ -6293,8 +6293,6 @@ const VideoInfoLoader = (function () {
 		} = JSON.parse(watchDataContainer.getAttribute('data-environment'));
 		const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
 		const {
-			context = {}, // contextがない
-			thread = {}, // threadがない
 			channel, // nullable
 			client: {
 				watchId,
@@ -6338,7 +6336,6 @@ const VideoInfoLoader = (function () {
 				items: tags,
 			},
 			video: {
-				dmcInfo: videoDmcInfo = {}, // dmcInfoがない
 				smileInfo: flvInfo = {}, // smileInfoがない
 				flvInfo: {
 					url: videoUrl = '',
@@ -6397,7 +6394,7 @@ const VideoInfoLoader = (function () {
 		const defaultThread = threads.find(t => t.isDefaultPostTarget);
 		const msgInfo = {
 			server: commentServer,
-			threadId: defaultThread ? defaultThread.id : (thread.ids && (thread.ids.community || thread.ids.default)),
+			threadId: defaultThread.id,
 			duration,
 			userId: viewerInfo.id,
 			isNeedKey: threads.findIndex(t => t.isThreadkeyRequired) >= 0, // (isChannel || isCommunity)
@@ -6484,7 +6481,7 @@ const VideoInfoLoader = (function () {
 			channelInfo,
 			uploaderInfo
 		};
-		let ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
+		let ngFilters = Array.prototype.concat(channelNg, ownerNg);
 		if (ngFilters.length) {
 			const ngtmp = [];
 			ngFilters.forEach(ng => {
