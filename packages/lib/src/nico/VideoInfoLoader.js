@@ -31,8 +31,6 @@ const VideoInfoLoader = (function () {
 
     const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
     const {
-      context = {}, // contextがない
-      thread = {}, // threadがない
       // ads,
       // category,
       channel, // nullable
@@ -104,7 +102,6 @@ const VideoInfoLoader = (function () {
         // viewer,
       },
       video: {
-        dmcInfo: videoDmcInfo = {}, // dmcInfoがない
         smileInfo: flvInfo = {}, // smileInfoがない
         flvInfo: {
           url: videoUrl = '',
@@ -179,7 +176,7 @@ const VideoInfoLoader = (function () {
     const defaultThread = threads.find(t => t.isDefaultPostTarget);
     const msgInfo = {
       server: commentServer,
-      threadId: defaultThread ? defaultThread.id : (thread.ids && (thread.ids.community || thread.ids.default)),
+      threadId: defaultThread.id,
       duration,
       userId: viewerInfo.id,
       isNeedKey: threads.findIndex(t => t.isThreadkeyRequired) >= 0, // (isChannel || isCommunity)
@@ -302,7 +299,7 @@ const VideoInfoLoader = (function () {
       uploaderInfo
     };
 
-    let ngFilters = Array.prototype.concat(ngFilters, channelNg, ownerNg);
+    let ngFilters = Array.prototype.concat(channelNg, ownerNg);
     if (ngFilters.length) {
       const ngtmp = [];
       ngFilters.forEach(ng => {
