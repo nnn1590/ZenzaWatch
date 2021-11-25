@@ -26,7 +26,7 @@
 // @exclude     *://dic.nicovideo.jp/p/*
 // @exclude     *://ext.nicovideo.jp/thumb/*
 // @exclude     *://ext.nicovideo.jp/thumb_channel/*
-// @version     0.5.15-fix-mylist-api.3
+// @version     0.5.15-fix-mylist-api.4
 // @grant       none
 // @author      segabito macmoto
 // @license     public domain
@@ -231,7 +231,6 @@ AntiPrototypeJs().then(() => {
       #mylistPocket-popup.is-firefox {
         /*perspective: none !important;*/
         position: fixed;
-        z-index: 10000000;
         transform: translate3d(-50%, -50%, 0);
         opacity: 0;
         transition: 0.3s opacity ease;
@@ -630,7 +629,7 @@ AntiPrototypeJs().then(() => {
 
           :host(#mylistPocket-popup) {
             position: fixed;
-            z-index: 200000;
+            z-index: 10000000;
             transform: translate3d(-50%, -50%, 0);
             opacity: 0;
             transition: 0.3s opacity ease;
