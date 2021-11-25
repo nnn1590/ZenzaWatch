@@ -218,7 +218,6 @@ AntiPrototypeJs().then(() => {
       #mylistPocket-popup.is-firefox {
         /*perspective: none !important;*/
         position: fixed;
-        z-index: 10000000;
         transform: translate3d(-50%, -50%, 0);
         opacity: 0;
         transition: 0.3s opacity ease;
@@ -617,7 +616,7 @@ AntiPrototypeJs().then(() => {
 
           :host(#mylistPocket-popup) {
             position: fixed;
-            z-index: 200000;
+            z-index: 10000000;
             transform: translate3d(-50%, -50%, 0);
             opacity: 0;
             transition: 0.3s opacity ease;
