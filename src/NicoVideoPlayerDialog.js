@@ -10,7 +10,7 @@ import {CommentInputPanel} from './CommentInputPanel';
 import {CommentPanel} from './CommentPanel';
 import {VideoControlBar} from './VideoControlBar';
 import {VideoInfoPanel} from './VideoInfoPanel';
-import {SettingPanel} from './SettingPanel';
+// import {SettingPanel} from './SettingPanel';
 import {PlayList, PlayListSession} from '../packages/zenza/src/playlist/PlayList';
 import {Emitter} from './baselib';
 import {ThreadLoader} from './loader/ThreadLoader';
