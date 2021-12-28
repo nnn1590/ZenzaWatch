@@ -65,7 +65,13 @@ const VideoInfoLoader = (function () {
         },
         // ichiba,
       },
-      // genre,
+      genre: {
+        // isDisabled,
+        // isImmoral,
+        // isNotSet,
+        key: genreKey,
+        // label,
+      },
       // marquee,
       media: {
         delivery: dmcInfo, // nullable
@@ -329,6 +335,7 @@ const VideoInfoLoader = (function () {
       watchAuthKey,
       playlistToken,
       series,
+      genreKey,
 
       isMemberFree,
       isNeedPayment,
@@ -412,11 +419,17 @@ const VideoInfoLoader = (function () {
       return data;
     }
 
-    if (
-      data.isNeedPayment &&
-      data.linkedChannelVideo &&
-      Config.getValue('loadLinkedChannelVideo')) {
-      return await loadLinkedChannelVideoInfo(data);
+    if (data.isNeedPayment && data.genreKey === 'anime' && Config.getValue('loadLinkedChannelVideo')) {
+      const query = new URLSearchParams({ videoId: data.watchApiData.videoDetail.id, _frontendId: data.msgInfo.frontendId });
+      const url = `https://public-api.ch.nicovideo.jp/v1/user/channelVideoDAnimeLinks?${query.toString()}`;
+      const linkedChannelVideos = await netUtil.fetch(url, { credentials: 'include' })
+        .then(r => r.json().data?.items ?? []).catch(() => []);
+      data.linkedChannelVideo = linkedChannelVideos.find(ch => {
+        return !!ch.isChannelMember;
+      });
+      if (data.linkedChannelVideo) {
+        return await loadLinkedChannelVideoInfo(data);
+      }
     }
 
     const error = (({isMemberFree, isNeedPayment, isPremiumFree}) => {
