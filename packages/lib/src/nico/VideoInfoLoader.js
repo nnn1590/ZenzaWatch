@@ -77,9 +77,9 @@ const VideoInfoLoader = (function () {
         // preview,
         video: {
           // commentableUserType,
-          isAdmission: isMemberOnly,
+          isAdmission: isMemberFree,
           isPpv: isNeedPayment,
-          isPremium: isPremiumOnly,
+          isPremium: isPremiumFree,
           // watchableUserType,
         },
       },
@@ -172,7 +172,6 @@ const VideoInfoLoader = (function () {
       } = { ...viewer };
       return { id, isPremium };
     })();
-    const linkedChannelVideo = false;
     const defaultThread = threads.find(t => t.isDefaultPostTarget);
     const msgInfo = {
       server: commentServer,
@@ -331,10 +330,10 @@ const VideoInfoLoader = (function () {
       playlistToken,
       series,
 
-      isMemberOnly,
-      isPremiumOnly,
+      isMemberFree,
       isNeedPayment,
-      linkedChannelVideo,
+      isPremiumFree,
+      linkedChannelVideo: null,
       resumeInfo,
     };
 
@@ -394,61 +393,67 @@ const VideoInfoLoader = (function () {
       });
   };
 
-  const onLoadPromise = (watchId, options, isRetry, resp) => {
+  const onLoadPromise = async (watchId, options, isRetry, resp) => {
     const data = parseWatchApiData(resp);
     debug.watchApiData = data;
     if (!data) {
-      return Promise.reject({
+      throw {
         reason: 'network',
         message: '通信エラー。動画情報の取得に失敗しました。(watch api)'
-      });
+      };
     }
 
     if (data.reject) {
-      return Promise.reject(data);
+      throw data;
     }
 
     if (data.isPlayable) {
       emitter.emitAsync('loadVideoInfo', data, 'WATCH_API', watchId);
-      return Promise.resolve(data);
+      return data;
     }
 
     if (
       data.isNeedPayment &&
       data.linkedChannelVideo &&
       Config.getValue('loadLinkedChannelVideo')) {
-      return loadLinkedChannelVideoInfo(data);
+      return await loadLinkedChannelVideoInfo(data);
     }
 
-    if (data.isPremiumOnly) {
-      return Promise.reject({
-        reason: 'premium only',
-        info: data,
-        message: 'この動画は有料です(プレミアム会員限定)'
-      });
-    }
-
-    if (data.isMemberOnly) {
-      return Promise.reject({
-        reason: 'member only',
-        info: data,
-        message: 'この動画は有料です(CH会員限定)'
-      });
-    }
-
-    if (data.isNeedPayment) {
-      return Promise.reject({
+    const error = (({isMemberFree, isNeedPayment, isPremiumFree}) => {
+      if (!isNeedPayment && isPremiumFree) {
+        return {
+          reason: 'premium only',
+          message: 'プレミアム会員限定',
+        };
+      }
+      if (!isNeedPayment && isMemberFree) {
+        return {
+          reason: 'member only',
+          message: 'CH会員限定',
+        };
+      }
+      if (!isNeedPayment) {
+        return {
+          reason: 'not supported',
+          message: 'この動画はZenzaWatchで再生できません',
+        };
+      }
+      let err = {
         reason: 'need payment',
-        info: data,
-        message: 'この動画は有料です'
-      });
-    }
-
-    return Promise.reject({
-      reason: 'not supported',
+        message: 'この動画は有料です',
+      };
+      if (isPremiumFree) {
+        err.message += ' (プレミアム会員無料)';
+      }
+      if (isMemberFree) {
+        err.message += ' (CH会員無料)';
+      }
+      return err;
+    })(data);
+    throw {
+      ...error,
       info: data,
-      message: 'この動画はZenzaWatchで再生できません'
-    });
+    };
   };
 
   const createSleep = function (sleepTime) {
