@@ -128,7 +128,7 @@ class VideoListItem {
       isPlayed: !!rawData.played,
       isLazy: true,
       isDragging: false,
-      isFavorite: false,
+      isFavorited: false,
       isDragover: false,
       isDropped: false,
       isPocketResolved: false,
@@ -234,10 +234,10 @@ class VideoListItem {
     this.state.isPlayed = v;
     this.notifyUpdate();
   }
-  get isFavorite() { return this.state.isFavorite; }
-  set isFavorite(v) {
-    if (this.isFavorite === v) { return; }
-    this.state.isFavorite = v;
+  get isFavorited() { return this.state.isFavorited; }
+  set isFavorited(v) {
+    if (this.isFavorited === v) { return; }
+    this.state.isFavorited = v;
     this.notifyUpdate();
   }
   get isPocketResolved() { return this.state.isPocketResolved; }

@@ -96,7 +96,7 @@ class VideoListItemView  {
   .videoItem.is-ng-rejected {
     display: none;
   }
-  .videoItem.is-fav-favorited .postedAt::after {
+  .videoItem.is-favorited .postedAt::after {
     content: ' ★';
     color: #fea;
     text-shadow: 2px 2px 2px #000;
@@ -322,7 +322,7 @@ class VideoListItemView  {
       'is-dragging':      item.isDragging,
       'is-dragover':      item.isDragover,
       'is-drropped':      item.isDropped,
-      'is-favorite':      item.isFavorite,
+      'is-favorited':      item.isFavorited,
       'is-not-resolved': !item.isPocketResolved
     });
     // const className = `videoItem watch${watchId} item${itemId}`;
