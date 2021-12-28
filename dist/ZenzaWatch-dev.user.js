@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.12
+// @version        2.6.3-fix-playlist.13
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.12';
+    var VER = '2.6.3-fix-playlist.13';
     const ENV = 'DEV';
 
 
@@ -2718,6 +2718,10 @@ const WatchPageHistory = (() => {
 		document.title = (isOpen ? '📺' : '') + title.replace(/^📺/, '');
 		bouncedRestore();
 	};
+	const updateOriginal = () => {
+		originalUrl = window && window.location && window.location.href;
+		originalTitle = window && window.document && window.document.title;
+	};
 	const onVideoInfoLoad = _.debounce(({watchId, title, owner: {name}}) => {
 		if (!watchId || !isOpen) {
 			return;
@@ -2731,7 +2735,10 @@ const WatchPageHistory = (() => {
 			return NicoVideoApi.pushHistory(path, title);
 		}
 	});
-	const onDialogOpen = () => isOpen = true;
+	const onDialogOpen = () => {
+		updateOriginal();
+		isOpen = true;
+	};
 	const onDialogClose = () => {
 		isOpen = false;
 		watchId = title = path = null;
@@ -2749,12 +2756,9 @@ const WatchPageHistory = (() => {
 		dialog.on('open', onDialogOpen);
 		dialog.on('loadVideoInfo', onVideoInfoLoad);
 		if (location.host !== 'www.nicovideo.jp') { return; }
-		window.addEventListener('beforeunload', restore, {passive: true});
-		window.addEventListener('error', restore, {passive: true});
-		window.addEventListener('unhandledrejection', () => {
-			originalUrl = window && window.location && window.location.href;
-			originalTitle = window && window.document && window.document.title;
-		}, {passive: true});
+		window.addEventListener('beforeunload', () => {isOpen && restore()}, {passive: true});
+		window.addEventListener('error', () => {isOpen && restore()}, {passive: true});
+		window.addEventListener('unhandledrejection', updateOriginal, {passive: true});
 	};
 	const pushHistoryAgency = async (path, title) => {
 		if (!navigator || !navigator.locks) {
@@ -6461,7 +6465,7 @@ const VideoInfoLoader = (function () {
 				id: videoId,
 				title,
 				description,
-				postedAt: new Date(registeredAt).toLocaleString(),
+				postedAt: registeredAt,
 				thumbnail,
 				largeThumbnail,
 				length: duration,
@@ -21147,7 +21151,7 @@ class VideoListItem {
 			isPlayed: !!rawData.played,
 			isLazy: true,
 			isDragging: false,
-			isFavorite: false,
+			isFavorited: false,
 			isDragover: false,
 			isDropped: false,
 			isPocketResolved: false,
@@ -21238,10 +21242,10 @@ class VideoListItem {
 		this.state.isPlayed = v;
 		this.notifyUpdate();
 	}
-	get isFavorite() { return this.state.isFavorite; }
-	set isFavorite(v) {
-		if (this.isFavorite === v) { return; }
-		this.state.isFavorite = v;
+	get isFavorited() { return this.state.isFavorited; }
+	set isFavorited(v) {
+		if (this.isFavorited === v) { return; }
+		this.state.isFavorited = v;
 		this.notifyUpdate();
 	}
 	get isPocketResolved() { return this.state.isPocketResolved; }
@@ -21561,7 +21565,7 @@ class VideoListItemView  {
 	.videoItem.is-ng-rejected {
 		display: none;
 	}
-	.videoItem.is-fav-favorited .postedAt::after {
+	.videoItem.is-favorited .postedAt::after {
 		content: ' ★';
 		color: #fea;
 		text-shadow: 2px 2px 2px #000;
@@ -21764,7 +21768,7 @@ class VideoListItemView  {
 			'is-dragging':      item.isDragging,
 			'is-dragover':      item.isDragover,
 			'is-drropped':      item.isDropped,
-			'is-favorite':      item.isFavorite,
+			'is-favorited':      item.isFavorited,
 			'is-not-resolved': !item.isPocketResolved
 		});
 		const thumbnailStyle = `background-image: url(${item.thumbnail})`;
@@ -21781,7 +21785,7 @@ class VideoListItemView  {
 						<span class="command pocket-info" data-command="pocket-info" data-param=${watchId} title="動画情報">？</span>
 					</div>
 					<div class="videoInfo">
-						<div class="postedAt">${item.postedAt}</div>
+						<div class="postedAt">${new Date(item.postedAt).toLocaleString()}</div>
 						<div class="title">
 							<a class="command videoLink"
 								href=${watchUrl} data-command="select" data-param=${itemId} title=${title}>${title}</a>
@@ -22052,7 +22056,7 @@ class VideoListView extends Emitter {
 			this.model.removeItem(item);
 			return;
 		}
-		item.isFavorite = isFav;
+		item.isFavorited = isFav;
 		item.isPocketResolved = true;
 		item.watchId = info.watchId;
 		item.info = info;
@@ -30314,7 +30318,7 @@ class VideoMetaInfo extends BaseViewComponent {
 		});
 	}
 	update(videoInfo) {
-		this._elm.postedAt.textContent = videoInfo.postedAt;
+		this._elm.postedAt.textContent = new Date(videoInfo.postedAt).toLocaleString();
 		const count = videoInfo.count;
 		this.updateVideoCount(count);
 	}
