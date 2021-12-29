@@ -82,11 +82,11 @@ class DmcInfo {
   }
 
   get hasStoryboard() {
-    return !!this._rawData.storyboard_session_api;
+    return !!this._rawData.storyboard;
   }
 
   get storyboardInfo() {
-    return this._rawData.storyboard_session_api;
+    return this._rawData.storyboard;
   }
 
   get transferPreset() {
