@@ -22,7 +22,7 @@
 // @exclude        *://dic.nicovideo.jp/p/*
 // @grant          none
 // @author         segabito macmoto
-// @version        0.0.21-another.2
+// @version        0.0.22-kphrx-patch.1
 // @noframes
 // @require        https://cdn.jsdelivr.net/npm/hls.js@latest
 // @run-at         document-start
@@ -3121,11 +3121,11 @@ const workerUtil = (() => {
           .controlButton[data-command=toggleHLSDebug] {
             font-family: Avenir;
           }`, {className: 'ZenzaHLS'});
-        container.append(div.getTemplateElement().content);
+        render(div, container);
       });
       ZenzaWatch.emitter.promise('videoContextMenu.addonMenuReady.list').then(({container}) => {
         const li = html`<li class="command" data-command="toggleHLSDebug">HLS設定</li>`;
-        container.append(li.getTemplateElement().content);
+        render(li, container);
       });
 
       ZenzaWatch.emitter.once('command-toggleHLSDebug', () => {

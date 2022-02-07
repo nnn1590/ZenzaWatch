@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.13
+// @version        2.6.3-fix-playlist.14
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.13';
+    var VER = '2.6.3-fix-playlist.14';
     const ENV = 'DEV';
 
 
@@ -6321,15 +6321,18 @@ const VideoInfoLoader = (function () {
 					hasContentTree,
 				},
 			},
+			genre: {
+				key: genreKey,
+			},
 			media: {
 				delivery: dmcInfo, // nullable
 			},
 			owner, // nullable
 			payment: {
 				video: {
-					isAdmission: isMemberOnly,
+					isAdmission: isMemberFree,
 					isPpv: isNeedPayment,
-					isPremium: isPremiumOnly,
+					isPremium: isPremiumFree,
 				},
 			},
 			player: {
@@ -6394,7 +6397,6 @@ const VideoInfoLoader = (function () {
 			} = { ...viewer };
 			return { id, isPremium };
 		})();
-		const linkedChannelVideo = false;
 		const defaultThread = threads.find(t => t.isDefaultPostTarget);
 		const msgInfo = {
 			server: commentServer,
@@ -6515,10 +6517,11 @@ const VideoInfoLoader = (function () {
 			watchAuthKey,
 			playlistToken,
 			series,
-			isMemberOnly,
-			isPremiumOnly,
+			genreKey,
+			isMemberFree,
 			isNeedPayment,
-			linkedChannelVideo,
+			isPremiumFree,
+			linkedChannelVideo: null,
 			resumeInfo,
 		};
 		emitter.emitAsync('csrfTokenUpdate', csrfToken);
@@ -6569,54 +6572,69 @@ const VideoInfoLoader = (function () {
 				return Promise.reject({reason: 'network', message: '通信エラー(loadLinkedChannelVideoInfo)'});
 			});
 	};
-	const onLoadPromise = (watchId, options, isRetry, resp) => {
+	const onLoadPromise = async (watchId, options, isRetry, resp) => {
 		const data = parseWatchApiData(resp);
 		debug.watchApiData = data;
 		if (!data) {
-			return Promise.reject({
+			throw {
 				reason: 'network',
 				message: '通信エラー。動画情報の取得に失敗しました。(watch api)'
-			});
+			};
 		}
 		if (data.reject) {
-			return Promise.reject(data);
+			throw data;
 		}
 		if (data.isPlayable) {
 			emitter.emitAsync('loadVideoInfo', data, 'WATCH_API', watchId);
-			return Promise.resolve(data);
+			return data;
 		}
-		if (
-			data.isNeedPayment &&
-			data.linkedChannelVideo &&
-			Config.getValue('loadLinkedChannelVideo')) {
-			return loadLinkedChannelVideoInfo(data);
-		}
-		if (data.isPremiumOnly) {
-			return Promise.reject({
-				reason: 'premium only',
-				info: data,
-				message: 'この動画は有料です(プレミアム会員限定)'
+		if (data.isNeedPayment && data.genreKey === 'anime' && Config.getValue('loadLinkedChannelVideo')) {
+			const query = new URLSearchParams({ videoId: data.watchApiData.videoDetail.id, _frontendId: data.msgInfo.frontendId });
+			const url = `https://public-api.ch.nicovideo.jp/v1/user/channelVideoDAnimeLinks?${query.toString()}`;
+			const linkedChannelVideos = await netUtil.fetch(url, { credentials: 'include' })
+				.then(r => r.json().data?.items ?? []).catch(() => []);
+			data.linkedChannelVideo = linkedChannelVideos.find(ch => {
+				return !!ch.isChannelMember;
 			});
+			if (data.linkedChannelVideo) {
+				return await loadLinkedChannelVideoInfo(data);
+			}
 		}
-		if (data.isMemberOnly) {
-			return Promise.reject({
-				reason: 'member only',
-				info: data,
-				message: 'この動画は有料です(CH会員限定)'
-			});
-		}
-		if (data.isNeedPayment) {
-			return Promise.reject({
+		const error = (({isMemberFree, isNeedPayment, isPremiumFree}) => {
+			if (!isNeedPayment && isPremiumFree) {
+				return {
+					reason: 'premium only',
+					message: 'プレミアム会員限定',
+				};
+			}
+			if (!isNeedPayment && isMemberFree) {
+				return {
+					reason: 'member only',
+					message: 'CH会員限定',
+				};
+			}
+			if (!isNeedPayment) {
+				return {
+					reason: 'not supported',
+					message: 'この動画はZenzaWatchで再生できません',
+				};
+			}
+			let err = {
 				reason: 'need payment',
-				info: data,
-				message: 'この動画は有料です'
-			});
-		}
-		return Promise.reject({
-			reason: 'not supported',
+				message: 'この動画は有料です',
+			};
+			if (isPremiumFree) {
+				err.message += ' (プレミアム会員無料)';
+			}
+			if (isMemberFree) {
+				err.message += ' (CH会員無料)';
+			}
+			return err;
+		})(data);
+		throw {
+			...error,
 			info: data,
-			message: 'この動画はZenzaWatchで再生できません'
-		});
+		};
 	};
 	const createSleep = function (sleepTime) {
 		return new Promise(resolve => setTimeout(resolve, sleepTime));
