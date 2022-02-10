@@ -82,7 +82,7 @@ class DmcInfo {
   }
 
   get storyboardInfo() {
-    return this._rawData.storyboard.session;
+    return this.hasStoryboard ? this._rawData.storyboard.session : null;
   }
 
   get transferPreset() {
@@ -382,7 +382,7 @@ class VideoInfoModel {
   }
 
   get dmcStoryboardInfo() {
-    return !!this._dmcInfo ? this._dmcInfo.storyboardInfo : null;
+    return this.hasDmcStoryboard ? this._dmcInfo.storyboardInfo : null;
   }
 
   /**
