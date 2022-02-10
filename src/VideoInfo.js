@@ -53,10 +53,6 @@ class DmcInfo {
     return this._session.recipeId;
   }
 
-  get heartBeatLifeTimeMs() {
-    return this._session.heartbeatLifetime;
-  }
-
   get protocols() {
     return this._session.protocols || [];
   }
@@ -86,15 +82,19 @@ class DmcInfo {
   }
 
   get storyboardInfo() {
-    return this._rawData.storyboard;
+    return this._rawData.storyboard.session;
   }
 
   get transferPreset() {
     return (this._session.transferPresets || [''])[0] || '';
   }
 
-  get heartbeatLifeTime() {
+  get heartbeatLifetime() {
     return this._session.heartbeatLifetime || 120 * 1000;
+  }
+
+  get contentKeyTimeout() {
+    return this._session.contentKeyTimeout || 600 * 1000;
   }
 
   get importVersion() {

@@ -116,7 +116,7 @@ const VideoSessionWorker = (() => {
             },
             content_auth: {
               auth_type: dmcInfo.authTypes[this._useHLS ? 'hls' : 'http'] || 'ht2',
-              content_key_timeout: 600 * 1000,
+              content_key_timeout: dmcInfo.contentKeyTimeout,
               service_id: 'nicovideo',
               service_user_id: dmcInfo.serviceUserId,
               //max_content_count: 10,
@@ -126,7 +126,7 @@ const VideoSessionWorker = (() => {
             content_type: 'movie',
             content_uri: '',
             keep_method: {
-              heartbeat: {lifetime: dmcInfo.heartBeatLifeTimeMs}
+              heartbeat: {lifetime: dmcInfo.heartbeatLifetime}
             },
             priority: dmcInfo.priority,
             protocol: {
@@ -286,7 +286,7 @@ const VideoSessionWorker = (() => {
         this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
         this._useHLS = typeof params.useHLS === 'boolean' ? params.useHLS : true;
         this._lastUpdate = Date.now();
-        this._heartbeatLifeTime = this._heartbeatInterval;
+        this._heartbeatLifetime = this._heartBeatInterval;
       }
 
       _createSession(videoInfo, dmcInfo) {
@@ -295,7 +295,7 @@ const VideoSessionWorker = (() => {
         return new Promise((resolve, reject) => {
           const url = `${baseUrl}?_format=json`;
 
-          this._heartbeatLifeTime = dmcInfo.heartbeatLifeTime;
+          this._heartbeatLifetime = dmcInfo.heartbeatLifetime;
           const postData = new DmcPostData(dmcInfo, this._videoQuality, {
             useHLS: this.useHLS,
             useSSL: url.startsWith('https://'),
@@ -385,7 +385,7 @@ const VideoSessionWorker = (() => {
       }
 
       get isDeleted() {
-        return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifeTime * 1.2;
+        return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifetime * 1.2;
       }
     }
 
@@ -557,23 +557,23 @@ const VideoSessionWorker = (() => {
         const request = {
           session: {
             client_info: {
-              player_id: info.player_id
+              player_id: info.playerId
             },
             content_auth: {
-              auth_type: info.auth_types.storyboard,
-              content_key_timeout: info.content_key_timeout,
+              auth_type: info.authTypes.storyboard,
+              content_key_timeout: info.contentKeyTimeout,
               service_id: 'nicovideo',
-              service_user_id: info.service_user_id
+              service_user_id: info.serviceUserId,
             },
-            content_id: info.content_id,
+            content_id: info.contentId,
             content_src_id_sets: [{
-              content_src_ids: []
+              content_src_ids: info.videos
             }],
             content_type: 'video',
             content_uri: '',
             keep_method: {
               heartbeat: {
-                lifetime: info.heartbeat_lifetime
+                lifetime: info.heartbeatLifetime
               }
             },
             priority: info.priority,
@@ -583,14 +583,14 @@ const VideoSessionWorker = (() => {
                 http_parameters: {
                   parameters: {
                     storyboard_download_parameters: {
-                      use_well_known_port: info.urls[0].is_well_known_port ? 'yes' : 'no',
-                      use_ssl: info.urls[0].is_ssl ? 'yes' : 'no'
+                      use_well_known_port: info.urls[0].isWellKnownPort ? 'yes' : 'no',
+                      use_ssl: info.urls[0].isSsl ? 'yes' : 'no'
                     }
                   }
                 }
               }
             },
-            recipe_id: info.recipe_id,
+            recipe_id: info.recipeId,
             session_operation_auth: {
               session_operation_auth_by_signature: {
                 signature: info.signature,
