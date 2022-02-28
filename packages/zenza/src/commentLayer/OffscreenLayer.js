@@ -86,7 +86,6 @@ const OffscreenLayer = config => {
     let layer;
     const onload = () => {
       frame.onload = null;
-      if (util.isChrome()) { frame.removeAttribute('srcdoc'); }
 
       console.log('%conOffScreenLayerLoad', 'background: lightgreen;');
       createTextField();
