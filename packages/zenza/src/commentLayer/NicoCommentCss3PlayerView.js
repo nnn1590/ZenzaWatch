@@ -84,7 +84,6 @@ class NicoCommentCss3PlayerView extends Emitter {
     const onload = () => {
       let win, doc;
       iframe.onload = null;
-      if (env.isChrome()) {iframe.removeAttribute('srcdoc');}
       try {
         win = iframe.contentWindow;
         doc = iframe.contentWindow.document;
