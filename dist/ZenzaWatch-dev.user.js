@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.16
+// @version        2.6.3-fix-playlist.17
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.16';
+    var VER = '2.6.3-fix-playlist.17';
     const ENV = 'DEV';
 
 
@@ -17153,7 +17153,6 @@ const OffscreenLayer = config => {
 		let layer;
 		const onload = () => {
 			frame.onload = null;
-			if (util.isChrome()) { frame.removeAttribute('srcdoc'); }
 			console.log('%conOffScreenLayerLoad', 'background: lightgreen;');
 			createTextField();
 			let doc = offScreenFrame.contentWindow.document;
@@ -17675,7 +17674,6 @@ class NicoCommentCss3PlayerView extends Emitter {
 		const onload = () => {
 			let win, doc;
 			iframe.onload = null;
-			if (env.isChrome()) {iframe.removeAttribute('srcdoc');}
 			try {
 				win = iframe.contentWindow;
 				doc = iframe.contentWindow.document;
