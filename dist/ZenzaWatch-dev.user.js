@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.17
+// @version        2.6.3-fix-playlist.18
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -98,9 +98,9 @@ AntiPrototypeJs();
     const dll = {};
     const util = {};
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
-    START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
+    START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.17';
+    var VER = '2.6.3-fix-playlist.18';
     const ENV = 'DEV';
 
 
@@ -772,6 +772,7 @@ const Config = (() => {
 		autoPlay: true,
 		'autoPlay:ginza': true,
 		'autoPlay:others': true,
+		enableResume: false,
 		loop: false,
 		mute: false,
 		screenMode: 'normal',
@@ -5444,6 +5445,14 @@ const {SettingPanelElement} = (() => {
 				<div class="control">
 					<label>
 						<input type="checkbox" class="checkbox"
+							data-setting-name="enableResume"
+							?checked=${conf.enableResume}>
+							続きから再生する
+					</label>
+				</div>
+				<div class="control">
+					<label>
+						<input type="checkbox" class="checkbox"
 						data-setting-name="enableTogglePlayOnClick"
 							?checked=${conf.enableTogglePlayOnClick}>
 							画面クリックで再生/一時停止
@@ -7903,7 +7912,7 @@ class VideoInfoModel {
 		return parseInt(this._videoDetail.height, 10);
 	}
 	get initialPlaybackTime() {
-		return this.resumePoints[0] && (this.resumePoints[0].time || 0);
+	return this.resumePoints[0]?.time ?? 0;
 	}
 	get resumePoints() {
 		const duration = this.duration;
@@ -7911,8 +7920,7 @@ class VideoInfoModel {
 		const resumePoints =
 			((this._cacheData && this._cacheData.resume) ? this._cacheData.resume : [])
 				.filter(({now, time}) => time > MARGIN && time < duration - MARGIN)
-				.map(({now, time}) => { return {now: new Date().toLocaleString(), time}; })
-				.reverse();
+				.map(({now, time}) => { return {now: new Date(now).toLocaleString(), time}; });
 		const lastResumePoint = this._resumeInfo ? this._resumeInfo.initialPlaybackPosition : 0;
 		lastResumePoint && resumePoints.unshift({now: '前回', time: lastResumePoint});
 		return resumePoints;
@@ -10229,6 +10237,9 @@ class VideoPlayer extends Emitter {
 		if (!this._canPlay) {
 			this._canPlay = true;
 			this.removeClass('is-loading');
+			if (Config.props.enableResume && this._video.currentTime == 0) {
+				this.emit('command', 'seekToResumePoint')
+			}
 			this.emit('canPlay', ...args);
 			if (this._video.videoHeight < 1) {
 				this._isAspectRatioFixed = false;
@@ -12624,11 +12635,11 @@ class Storyboard extends Emitter {
 				pointer.setAttribute('duration', videoInfo.duration);
 				pointer.setAttribute('time', resume.time);
 				pointer.setAttribute('text', `${resume.now} ここまで見た`);
-				if (i > 0) {
+				if (resume.now !== '前回') {
 					cssUtil.setProps(
 						[pointer, '--pointer-color', 'rgba(128, 128, 255, 0.6)'],
 						[pointer, '--color', '#aef']);
-				} else{
+				} else {
 					cssUtil.setProps([pointer, '--scale-pp', 1.7]);
 				}
 			}
@@ -23490,8 +23501,10 @@ class VideoWatchOptions {
 		return this._options.reloadCount;
 	}
 	get currentTime() {
-		return _.isNumber(this._options.currentTime) ?
-			parseFloat(this._options.currentTime, 10) : 0;
+		if (_.isNumber(this._options.currentTime))
+			return parseFloat(this._options.currentTime, 10);
+		return !isNaN(this.query.from) ?
+			parseFloat(this.query.from, 10) : 0;
 	}
 	createForVideoChange(options) {
 		options = options || {};
