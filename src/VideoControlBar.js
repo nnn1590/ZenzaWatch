@@ -445,11 +445,11 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
         pointer.setAttribute('duration', videoInfo.duration);
         pointer.setAttribute('time', resume.time);
         pointer.setAttribute('text', `${resume.now} ここまで見た`);
-        if (i > 0) {
+        if (resume.now !== '前回') {
           cssUtil.setProps(
             [pointer, '--pointer-color', 'rgba(128, 128, 255, 0.6)'],
             [pointer, '--color', '#aef']);
-        } else{
+        } else {
           cssUtil.setProps([pointer, '--scale-pp', 1.7]);
         }
       }

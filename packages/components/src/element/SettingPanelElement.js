@@ -35,6 +35,15 @@ const {SettingPanelElement} = (() => {
         <div class="control">
           <label>
             <input type="checkbox" class="checkbox"
+              data-setting-name="enableResume"
+              ?checked=${conf.enableResume}>
+              続きから再生する
+          </label>
+        </div>
+
+        <div class="control">
+          <label>
+            <input type="checkbox" class="checkbox"
             data-setting-name="enableTogglePlayOnClick"
               ?checked=${conf.enableTogglePlayOnClick}>
               画面クリックで再生/一時停止

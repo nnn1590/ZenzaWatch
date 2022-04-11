@@ -20,6 +20,7 @@ const Config = (() => {
     autoPlay: true,
     'autoPlay:ginza': true,
     'autoPlay:others': true,
+    enableResume: false,
     loop: false,
     mute: false,
     screenMode: 'normal',
