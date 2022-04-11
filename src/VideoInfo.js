@@ -498,8 +498,7 @@ class VideoInfoModel {
     const resumePoints =
       ((this._cacheData && this._cacheData.resume) ? this._cacheData.resume : [])
         .filter(({now, time}) => time > MARGIN && time < duration - MARGIN)
-        .map(({now, time}) => { return {now: new Date().toLocaleString(), time}; })
-        .reverse();
+        .map(({now, time}) => { return {now: new Date(now).toLocaleString(), time}; });
     const lastResumePoint = this._resumeInfo ? this._resumeInfo.initialPlaybackPosition : 0;
 
     lastResumePoint && resumePoints.unshift({now: '前回', time: lastResumePoint});
