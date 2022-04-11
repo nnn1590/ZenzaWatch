@@ -951,6 +951,9 @@ class VideoPlayer extends Emitter {
     if (!this._canPlay) {
       this._canPlay = true;
       this.removeClass('is-loading');
+      if (Config.props.enableResume && this._video.currentTime == 0) {
+        this.emit('command', 'seekToResumePoint')
+      }
       this.emit('canPlay', ...args);
       if (this._video.videoHeight < 1) {
         this._isAspectRatioFixed = false;

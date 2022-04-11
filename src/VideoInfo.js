@@ -489,7 +489,7 @@ class VideoInfoModel {
   }
 
   get initialPlaybackTime() {
-    return this.resumePoints[0] && (this.resumePoints[0].time || 0);
+		return this.resumePoints[0]?.time ?? 0;
   }
 
   get resumePoints() {
