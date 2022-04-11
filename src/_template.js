@@ -120,7 +120,7 @@ AntiPrototypeJs();
     const dll = {};
     const util = {};
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
-    START_PAGE_QUERY = encodeURIComponent(START_PAGE_QUERY);
+    START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
     //@version
     //@environment
