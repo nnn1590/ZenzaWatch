@@ -132,8 +132,11 @@ class VideoWatchOptions {
     return this._options.reloadCount;
   }
   get currentTime() {
-    return _.isNumber(this._options.currentTime) ?
-      parseFloat(this._options.currentTime, 10) : 0;
+    if (_.isNumber(this._options.currentTime))
+      return parseFloat(this._options.currentTime, 10);
+
+    return !isNaN(this.query.from) ?
+      parseFloat(this.query.from, 10) : 0;
   }
   createForVideoChange(options) {
     options = options || {};
