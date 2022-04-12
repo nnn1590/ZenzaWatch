@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.18
+// @version        2.6.3-fix-playlist.19
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.18';
+    var VER = '2.6.3-fix-playlist.19';
     const ENV = 'DEV';
 
 
@@ -7999,8 +7999,9 @@ class VideoInfoModel {
 }
 const {NicoSearchApiV2Query, NicoSearchApiV2Loader} =
 	(function () {
-		const BASE_URL = 'https://api.search.nicovideo.jp/api/v2/';
+		const BASE_URL = 'https://api.search.nicovideo.jp/api/v2/snapshot';
 		const API_BASE_URL = `${BASE_URL}/video/contents/search`;
+		const VERSION_URL = `${BASE_URL}/version`
 		const MESSAGE_ORIGIN = 'https://api.search.nicovideo.jp/';
 		const SORT = {
 			f: 'startTime',
@@ -8009,9 +8010,7 @@ const {NicoSearchApiV2Query, NicoSearchApiV2Loader} =
 			m: 'mylistCounter',
 			l: 'lengthSeconds',
 			n: 'lastCommentTime',
-			h: '_hotMylistCounter',           // 人気が高い順
-			'_hot': '_hotMylistCounter',    // 人気が高い順(↑と同じだけど互換用に残ってる)
-			'_popular': '_popular',            // 並び順指定なしらしい
+			likeCount: 'likeCounter',
 		};
 		const F_RANGE = {
 			U_1H: 4,
@@ -8097,8 +8096,8 @@ const {NicoSearchApiV2Query, NicoSearchApiV2Loader} =
 				);
 				this._fields = [
 					'contentId', 'title', 'description', 'tags', 'categoryTags',
-					'viewCounter', 'commentCounter', 'mylistCounter', 'lengthSeconds',
-					'startTime', 'thumbnailUrl'
+					'viewCounter', 'commentCounter', 'mylistCounter', 'likeCounter',
+					'lengthSeconds', 'startTime', 'thumbnailUrl'
 				];
 				this._context = 'ZenzaWatch';
 				const n = new Date(), now = this.now;
@@ -8281,15 +8280,61 @@ const {NicoSearchApiV2Query, NicoSearchApiV2Loader} =
 		NicoSearchApiV2Query.SORT = SORT;
 		NicoSearchApiV2Query.F_RANGE = F_RANGE;
 		NicoSearchApiV2Query.L_RANGE = L_RANGE;
+		class NicoSearchApiV2Version {
+			constructor() {
+				this.date = this.lastUpdate = this._baseDate;
+			}
+			get isLatest() {
+				return (this.date - this._baseDate) > 0;
+			}
+			async update() {
+				const now = Date.now();
+				if (now - this.lastUpdate <= 1000 * 60 * 5) {
+					return this.date;
+				}
+				initializeCrossDomainGate();
+				const res =  await gate.fetch(VERSION_URL);
+				const body = await res.json();
+				this.date = new Date(body.last_modified);
+				this.lastUpdate = new Date(res.headers.get('Date') ?? now);
+				return this.date;
+			}
+			get _baseDate() {
+				let now = new Date();
+				return now.setUTCHours(now.getUTCHours() >= 20 ? 20 : -4, 0, 0);
+			}
+		}
 		class NicoSearchApiV2Loader {
+			static version = new NicoSearchApiV2Version;
+			static cacheStorage;
+			static CACHE_EXPIRE_TIME = 24 * 60 * 60 * 1000;
 			static async search(word, params) {
 				initializeCrossDomainGate();
 				const query = new NicoSearchApiV2Query(word, params);
 				const url = API_BASE_URL + '?' + query.toString();
+				const version = this.version.isLatest
+					? this.version.date.getTime()
+					: await this.version.update().then(date => date.getTime());
+				if (!this.cacheStorage) {
+					this.cacheStorage = new CacheStorage(sessionStorage);
+				}
+				const cacheKey = `search: ${[
+					`words:${query.q}`,
+					`targets:${query.targets.join(',')}`,
+					`sort:${query.sort}`,
+					`filters:${query.stringfiedFilters}`,
+					`offset:${query.offset}`,
+				].join(', ')}`;
+				const cacheData = this.cacheStorage.getItem(cacheKey);
+				if (cacheData && cacheData.version === version) {
+					return cacheData.data;
+				}
 				return gate.fetch(url).then(res => res.text()).then(result => {
 					result = NicoSearchApiV2Loader.parseResult(result);
 					if (typeof result !== 'number' && result.status === 'ok') {
-						return Promise.resolve(Object.assign(result, {word, params}));
+						let data = Object.assign(result, {word, params});
+						this.cacheStorage.setItem(cacheKey, {data, version}, this.CACHE_EXPIRE_TIME);
+						return Promise.resolve(data);
 					} else {
 						let description;
 						switch (result) {
@@ -23005,9 +23050,6 @@ class PlayList extends VideoList {
 		return this._playlistApiLoader
 			.load(playlist, msgInfo).then(items => {
 				window.console.timeEnd(timeKey);
-				if (options.ownerId) {
-					items = items.filter(item => item.content.owner.id == options.ownerId);
-				}
 				let videoListItems = items.map(item => VideoListItem.createByMylistItem(item));
 				if (videoListItems.length < 1) {
 					return Promise.reject({
@@ -23017,7 +23059,7 @@ class PlayList extends VideoList {
 				}
 				if (options.shuffle) {
 					videoListItems = _.shuffle(videoListItems);
-				} else if (playlist.type === 'user-uploaded' && playlist.options == null || options.playlistSort) {
+				} else if (playlist.type === 'user-uploaded' && playlist.options == null) {
 					videoListItems.reverse();
 				}
 				if (options.insert) {
@@ -23039,7 +23081,7 @@ class PlayList extends VideoList {
 	}
 	loadSearchVideo(word, options, limit = 300) {
 		this._initializeView();
-		if (!this._searchApiLoader) {
+		if (!this._nicoSearchApiLoader) {
 			this._nicoSearchApiLoader = NicoSearchApiV2Loader;
 		}
 		window.console.time('loadSearchVideos' + word);
@@ -24963,23 +25005,25 @@ class NicoVideoPlayerDialog extends Emitter {
 			err => this.execCommand('alert', err.message || '投稿動画一覧のロード失敗'));
 	}
 	_onPlaylistSetSearchVideo(params) {
-		let option = {watchId: this._watchId};
-		let { owner, playlistSort, searchType, ...options } = params.option;
-		if (searchType === 'tag') {
-			options.tag = params.word;
-		} else {
-			options.keyword = params.word;
-		}
+		let option = Object.assign({watchId: this._watchId}, params.option || {});
+		let word = params.word;
 		option.insert = this._playlist.isEnable;
-		if (owner) {
-			option.ownerId = parseInt(this._videoInfo.owner.id, 10);
+		if (option.owner) {
+			let ownerId = parseInt(this._videoInfo.owner.id, 10);
+			if (this._videoInfo.isChannel) {
+				option.channelId = ownerId;
+			} else {
+				option.userId = ownerId;
+			}
 		}
-		option.playlistSort = playlistSort;
+		delete option.owner;
+		let query = this._videoWatchOptions.query;
+		option = Object.assign(option, query);
 		this._state.currentTab = 'playlist';
-		this._playlist.load({ type: 'search', options }, option, this._videoInfo.msgInfo).then(result => {
+		this._playlist.loadSearchVideo(word, option).then(result => {
 				this.execCommand('notify', result.message);
 				this._playlist.insertCurrentVideo(this._videoInfo);
-				global.emitter.emitAsync('searchVideo', { ...option, ...options });
+				global.emitter.emitAsync('searchVideo', {word, option});
 				window.setTimeout(() => this._playlist.scrollToActiveItem(), 1000);
 			},
 			err => {
@@ -26887,7 +26931,6 @@ CommentInputPanel.__css__ = (`
 		width: 100%;
 		height: 30px !important;
 		font-size: 24px;
-		background: transparent;
 		border: none;
 		opacity: 0;
 		transition: opacity 0.3s ease, box-shadow 0.4s ease;
@@ -26895,6 +26938,10 @@ CommentInputPanel.__css__ = (`
 		line-height: 26px !important;
 		padding-right: 32px !important;
 		margin-bottom: 0 !important;
+	}
+	.commentInputPanel:not(:focus-within) .commentInput {
+		background: transparent;
+		color: initial;
 	}
 	.commentInputPanel:hover  .commentInput {
 		opacity: 0.5;
@@ -26907,7 +26954,6 @@ CommentInputPanel.__css__ = (`
 		box-sizing: border-box;
 		border: 1px solid #888;
 		border-radius: 8px;
-		background: #fff;
 		box-shadow: 0 0 8px #fff;
 	}
 	.commentInputPanel .autoPauseLabel {
@@ -29214,6 +29260,7 @@ class VideoSearchForm extends Emitter {
 		this._form.addEventListener('submit', this._onSubmit.bind(this));
 		const config = this._config;
 		const form = this._form;
+		config.props.ownerOnly = false;
 		form['ownerOnly'].checked = config.props.ownerOnly;
 		const confMode = config.props.mode;
 		if (typeof confMode === 'string' && ['tag', 'keyword'].includes(confMode)) {
@@ -29359,7 +29406,7 @@ VideoSearchForm.__css__ = (`
 			background: rgba(50, 50, 50, 0.8);
 		}
 		.zenzaVideoSearchPanel:not(:focus-within) .focusOnly {
-			display: none;
+			opacity: 0;
 		}
 		.zenzaVideoSearchPanel .searchInputHead {
 			position: absolute;
@@ -29511,12 +29558,15 @@ VideoSearchForm.__css__ = (`
 				background: #333;
 				color: #ccc;
 			}
-			.zenzaVideoSearchPanel .autoPauseLabel {
+			.zenzaVideoSearchPanel .ownerOnlyLabel {
 				cursor: pointer;
 			}
-			.zenzaVideoSearchPanel .autoPauseLabel input + span {
+			.zenzaVideoSearchPanel .ownerOnlyLabel input + span {
 				display: inline-block;
 				pointer-events: none;
+			}
+			.zenzaVideoSearchPanel .ownerOnlyLabel input[disabled] + span {
+				filter: brightness(80%);
 			}
 	`).trim();
 VideoSearchForm.__tpl__ = (`
@@ -29566,8 +29616,8 @@ VideoSearchForm.__tpl__ = (`
 						<option value="l">長い順</option>
 						<option value="l,a">短い順</option>
 					</select>
-					<label class="autoPauseLabel">
-						<input type="checkbox" name="ownerOnly" checked="checked">
+					<label class="ownerOnlyLabel">
+						<input type="checkbox" name="ownerOnly" checked="checked" disabled>
 						<span>投稿者の動画のみ</span>
 					</label>
 				</div>
