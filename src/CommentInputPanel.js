@@ -175,7 +175,6 @@ CommentInputPanel.__css__ = (`
     width: 100%;
     height: 30px !important;
     font-size: 24px;
-    background: transparent;
     border: none;
     opacity: 0;
     transition: opacity 0.3s ease, box-shadow 0.4s ease;
@@ -183,6 +182,10 @@ CommentInputPanel.__css__ = (`
     line-height: 26px !important;
     padding-right: 32px !important;
     margin-bottom: 0 !important;
+  }
+  .commentInputPanel:not(:focus-within) .commentInput {
+    background: transparent;
+    color: initial;
   }
 
   .commentInputPanel:hover  .commentInput {
@@ -196,7 +199,6 @@ CommentInputPanel.__css__ = (`
     box-sizing: border-box;
     border: 1px solid #888;
     border-radius: 8px;
-    background: #fff;
     box-shadow: 0 0 8px #fff;
   }
 
