@@ -186,6 +186,7 @@ CommentInputPanel.__css__ = (`
   .commentInputPanel:not(:focus-within) .commentInput {
     background: transparent;
     color: initial;
+    text-shadow: 1px 0 2px hsl(0,0%,66%), 0 1px 2px hsl(0,0%,66%), 0 -1px 2px hsl(0,0%,66%), -1px 0 2px hsl(0,0%,66%);
   }
 
   .commentInputPanel:hover  .commentInput {
