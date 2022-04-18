@@ -550,8 +550,12 @@ css.addStyle(`
     background: #446;
   }
 
-  .videoDescription-font {
-    text-shadow: 1px 1px var(--base-description-color, #888);
+  .videoDescription-font[style*="color"] {
+    text-shadow:
+      0 -1px 2px var(--base-description-color, #888),
+      1px 0 2px var(--base-description-color, #888),
+      0 1px 2px var(--base-description-color, #888),
+      -1px 0 2px var(--base-description-color, #888);
   }
 
   .zenzaWatchVideoInfoPanel .videoDescription .mylistLink {
