@@ -599,10 +599,12 @@ const $ = uq;
 
     const initializePanel = () => {
       // Config.watch();
-      panel = new SettingPanel({
-        playerConfig: Config,
-        $container: $('body')
-      });
+      if (panel == null) {
+        panel = new SettingPanel({
+          playerConfig: Config,
+          $container: $('body')
+        });
+      }
     };
 
     const initialize = () => {
