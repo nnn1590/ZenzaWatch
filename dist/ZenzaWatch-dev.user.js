@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.19
+// @version        2.6.3-fix-playlist.20
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.19';
+    var VER = '2.6.3-fix-playlist.20';
     const ENV = 'DEV';
 
 
@@ -26942,6 +26942,7 @@ CommentInputPanel.__css__ = (`
 	.commentInputPanel:not(:focus-within) .commentInput {
 		background: transparent;
 		color: initial;
+		text-shadow: 1px 0 2px hsl(0,0%,66%), 0 1px 2px hsl(0,0%,66%), 0 -1px 2px hsl(0,0%,66%), -1px 0 2px hsl(0,0%,66%);
 	}
 	.commentInputPanel:hover  .commentInput {
 		opacity: 0.5;
@@ -28384,8 +28385,12 @@ css.addStyle(`
 	.zenzaWatchVideoInfoPanel .videoDescription .watch:hover {
 		background: #446;
 	}
-	.videoDescription-font {
-		text-shadow: 1px 1px var(--base-description-color, #888);
+	.videoDescription-font[style*="color"] {
+		text-shadow:
+			0 -1px 2px var(--base-description-color, #888),
+			1px 0 2px var(--base-description-color, #888),
+			0 1px 2px var(--base-description-color, #888),
+			-1px 0 2px var(--base-description-color, #888);
 	}
 	.zenzaWatchVideoInfoPanel .videoDescription .mylistLink {
 		white-space: nowrap;
@@ -29567,6 +29572,7 @@ VideoSearchForm.__css__ = (`
 			}
 			.zenzaVideoSearchPanel .ownerOnlyLabel input[disabled] + span {
 				filter: brightness(80%);
+				text-decoration: line-through;
 			}
 	`).trim();
 VideoSearchForm.__tpl__ = (`
