@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description1 ZenzaWatchの上級者向け設定。変更する時だけ有効にすればOK
 // @include     *//www.nicovideo.jp/my*
-// @version     0.3.3-another.2
+// @version     0.3.3-another.3
 // @author      segabito macmoto
 // @license     public domain
 // @grant       none
@@ -2367,10 +2367,12 @@ const cssUtil = css;
 
     const initializePanel = () => {
       // Config.watch();
-      panel = new SettingPanel({
-        playerConfig: Config,
-        $container: $('body')
-      });
+      if (panel == null) {
+        panel = new SettingPanel({
+          playerConfig: Config,
+          $container: $('body')
+        });
+      }
     };
 
     const initialize = () => {
