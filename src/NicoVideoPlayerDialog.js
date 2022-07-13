@@ -387,6 +387,10 @@ class NicoVideoPlayerDialogView extends Emitter {
     if (mylistReg) {
       return this._onCommand('playlistSetMylist', mylistReg[2]);
     }
+    const seriesReg = /series\/(\d+)/.exec(text);
+    if (seriesReg) {
+      return this._onCommand('playlistSetSeries', seriesReg[1]);
+    }
     const ownerReg = /user\/(\d+)/.exec(text);
     if (ownerReg) {
       return this._onCommand('playlistSetUploadedVideo', ownerReg[1]);

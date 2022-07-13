@@ -207,6 +207,18 @@ class VideoInfoPanel extends Emitter {
         </zenza-mylist-link>`)[0];
       link.replaceWith(button);
     };
+    const seriesLink = link => {
+      link.classList.add('seriesLink');
+      const seriesId = link.textContent.split('/')[1];
+      const button = uq(`<zenza-series-link data-series-id="${seriesId}">
+          ${link.outerHTML}
+          <zenza-playlist-append
+            class="playlistSetSeries clickable-item" title="プレイリストで開く"
+            data-command="playlistSetSeries" data-param="${seriesId}"
+          >▶</zenza-playlist-append>
+        </zenza-series-link>`)[0];
+      link.replaceWith(button);
+    };
     const youtube = link => {
       const btn = uq(`<zentube-button
         class="zenzaTubeButton"
@@ -233,6 +245,8 @@ class VideoInfoPanel extends Emitter {
         seekTime(a);
       } else if (/^mylist\//.test(a.textContent)) {
         mylistLink(a);
+      } else if (/^series\//.test(a.textContent)) {
+        seriesLink(a);
       } else if (/^https?:\/\/((www\.|)youtube\.com\/watch|youtu\.be)/.test(href)) {
         youtube(a);
         this._zenTubeUrl = href;
@@ -558,7 +572,8 @@ css.addStyle(`
       -1px 0 2px var(--base-description-color, #888);
   }
 
-  .zenzaWatchVideoInfoPanel .videoDescription .mylistLink {
+  .zenzaWatchVideoInfoPanel .videoDescription .mylistLink,
+  .zenzaWatchVideoInfoPanel .videoDescription .seriesLink {
     white-space: nowrap;
     display: inline-block;
   }
@@ -573,6 +588,7 @@ css.addStyle(`
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistAppend,
   .zenzaWatchVideoInfoPanel .videoInfoTab .deflistAdd,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetMylist,
+  .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetSeries,
   .zenzaWatchVideoInfoPanel .videoInfoTab .pocket-info,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetUploadedVideo {
     display: inline-block;
@@ -625,6 +641,7 @@ css.addStyle(`
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistAppend:hover,
   .zenzaWatchVideoInfoPanel .videoInfoTab .deflistAdd:hover,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetMylist:hover,
+  .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetSeries:hover,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetUploadedVideo:hover {
     transform: scale(1.5);
   }
@@ -632,6 +649,7 @@ css.addStyle(`
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistAppend:active,
   .zenzaWatchVideoInfoPanel .videoInfoTab .deflistAdd:active,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetMylist:active,
+  .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetSeries:active,
   .zenzaWatchVideoInfoPanel .videoInfoTab .playlistSetUploadedVideo:active {
     transform: scale(1.2);
     border: 1px inset;
