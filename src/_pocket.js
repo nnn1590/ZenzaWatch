@@ -1834,7 +1834,7 @@ AntiPrototypeJs().then(() => {
           ' <a href="//seiga.nicovideo.jp/seiga/$1$2" class="seigaLink" rel="noopener" target="_blank">$1$2</a> ');
         html = html.replace(/(co)(\d+)/g,
           ' <a href="//com.nicovideo.jp/community/$1$2" class="communityLink" rel="noopener" target="_blank">$1$2</a> ');
-        html = html.replace(/(watch|mylist|user)\/(\d+)/g, ' <a href="https://www.nicovideo.jp/$1/$2" rel="noopener" class="videoLink target-change">$1/$2</a> ');
+        html = html.replace(/(watch|mylist|series|user)\/(\d+)/g, ' <a href="https://www.nicovideo.jp/$1/$2" rel="noopener" class="videoLink target-change">$1/$2</a> ');
         html = html.replace(/(sm|nm|so)(\d+)/g,       ' <a href="https://www.nicovideo.jp/watch/$1$2" rel="noopener" class="videoLink target-change">$1$2</a> ');
 
         let linkmatch = /<a.*?<\/a>/, n;
