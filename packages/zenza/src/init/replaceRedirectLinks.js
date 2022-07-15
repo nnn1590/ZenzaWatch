@@ -65,35 +65,32 @@ const replaceRedirectLinks = async () => {
       }).observe(container, {childList: true});
     });
   }
-  if (location.host === 'www.nicovideo.jp' && nicoUtil.getMypageVer() === 'spa') {
+  if (location.host === 'www.nicovideo.jp' && nicoUtil.getMypageVer() === 'spa' &&
+    (location.pathname.indexOf('/user/') === 0 || location.pathname.indexOf('/my') === 0)) {
     await uq.ready(); // DOMContentLoaded
-    let shuffleButton;
-    const query = '.ContinuousPlayButton';
-    const addShufflePlaylistLink = async () => {
-      const lp = location.pathname;
-      if (!lp.startsWith('/my/watchlater') && !lp.includes('/mylist')) {
-        return;
-      }
-      if (shuffleButton && shuffleButton[0].parentNode && shuffleButton[0].parentNode.parentNode) {
-        return;
-      }
-      const $a = uq(query);
-      if (!$a.length) {
-        return false;
-      }
-      if (!shuffleButton) {
-        const $shuffle = uq.html($a[0].outerHTML).text('シャッフル再生')
-          .addClass('zenzaPlaylistShuffleStart');
-        shuffleButton = $shuffle;
-      }
-      const mylistId = lp.replace(/^.*\//, '');
-      const playlistType = mylistId ? 'mylist' : 'deflist';
-      shuffleButton.attr('href', $a[0].href + '&shuffle=1');
-
-      $a.before(shuffleButton);
-      return true;
+    const createShuffleButton = (continuous) => {
+      let shuffle = continuous.cloneNode(true);
+      shuffle.classList.add('zenzaPlaylistShuffleStart');
+      shuffle.innerText = 'シャッフル再生';
+      shuffle.href += '&shuffle=1';
+      continuous.after(shuffle);
     };
-    setInterval(addShufflePlaylistLink, 1000);
+    const observer = new MutationObserver((mutationList, observer) => {
+      let shuffle = document.querySelector('.zenzaPlaylistShuffleStart');
+      if (shuffle) {
+        return;
+      }
+      let continuous = document.querySelector('.ContinuousPlayButton');
+      if (continuous) {
+        createShuffleButton(continuous);
+        return;
+      }
+    });
+    let continuous = document.querySelector('.ContinuousPlayButton');
+    if (continuous) {
+      createShuffleButton(continuous);
+    }
+    observer.observe(document.querySelector('.UserPage-main'), {childList: true, subtree: true});
   }
 
   if (location.host === 'www.nicovideo.jp' &&
