@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.21
+// @version        2.6.3-fix-playlist.22
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.21';
+    var VER = '2.6.3-fix-playlist.22';
     const ENV = 'DEV';
 
 
@@ -30747,34 +30747,32 @@ const replaceRedirectLinks = async () => {
 			}).observe(container, {childList: true});
 		});
 	}
-	if (location.host === 'www.nicovideo.jp' && nicoUtil.getMypageVer() === 'spa') {
+	if (location.host === 'www.nicovideo.jp' && nicoUtil.getMypageVer() === 'spa' &&
+		(location.pathname.indexOf('/user/') === 0 || location.pathname.indexOf('/my') === 0)) {
 		await uq.ready(); // DOMContentLoaded
-		let shuffleButton;
-		const query = '.ContinuousPlayButton';
-		const addShufflePlaylistLink = async () => {
-			const lp = location.pathname;
-			if (!lp.startsWith('/my/watchlater') && !lp.includes('/mylist')) {
-				return;
-			}
-			if (shuffleButton && shuffleButton[0].parentNode && shuffleButton[0].parentNode.parentNode) {
-				return;
-			}
-			const $a = uq(query);
-			if (!$a.length) {
-				return false;
-			}
-			if (!shuffleButton) {
-				const $shuffle = uq.html($a[0].outerHTML).text('シャッフル再生')
-					.addClass('zenzaPlaylistShuffleStart');
-				shuffleButton = $shuffle;
-			}
-			const mylistId = lp.replace(/^.*\//, '');
-			const playlistType = mylistId ? 'mylist' : 'deflist';
-			shuffleButton.attr('href', $a[0].href + '&shuffle=1');
-			$a.before(shuffleButton);
-			return true;
+		const createShuffleButton = (continuous) => {
+			let shuffle = continuous.cloneNode(true);
+			shuffle.classList.add('zenzaPlaylistShuffleStart');
+			shuffle.innerText = 'シャッフル再生';
+			shuffle.href += '&shuffle=1';
+			continuous.after(shuffle);
 		};
-		setInterval(addShufflePlaylistLink, 1000);
+		const observer = new MutationObserver((mutationList, observer) => {
+			let shuffle = document.querySelector('.zenzaPlaylistShuffleStart');
+			if (shuffle) {
+				return;
+			}
+			let continuous = document.querySelector('.ContinuousPlayButton');
+			if (continuous) {
+				createShuffleButton(continuous);
+				return;
+			}
+		});
+		let continuous = document.querySelector('.ContinuousPlayButton');
+		if (continuous) {
+			createShuffleButton(continuous);
+		}
+		observer.observe(document.querySelector('.UserPage-main'), {childList: true, subtree: true});
 	}
 	if (location.host === 'www.nicovideo.jp' &&
 		(location.pathname.indexOf('/search/') === 0 || location.pathname.indexOf('/tag/') === 0)) {
@@ -30799,6 +30797,38 @@ const replaceRedirectLinks = async () => {
 					.find('a[data-link]').attr('href', `//www.nicovideo.jp/watch/${videoId}`);
 			});
 		}, 3000);
+	}
+	if (location.host === 'www.nicovideo.jp' && location.pathname.indexOf('/series/') === 0) {
+		const firstVideo = document.querySelector('.NC-Link.NC-MediaObject-contents');
+		if (!firstVideo) { return; }
+		const autoPlayButton = document.createElement('a');
+		autoPlayButton.classList.add('ContinuousPlayButton');
+		autoPlayButton.innerText = '連続再生';
+		autoPlayButton.href = (firstVideo.dataset.href ?? firstVideo.href) + '&continuous=1';
+		Object.assign(autoPlayButton.style, {
+			alignItems: 'center',
+			background: '#fff',
+			border: '2px solid #eee',
+			borderRadius: '4px',
+			color: '#555',
+			display: 'flex',
+			fontSize: '12px',
+			height: '32px',
+			padding: '0 8px',
+		});
+		const shuffleButton = autoPlayButton.cloneNode(true);
+		shuffleButton.classList.add('zenzaPlaylistShuffleStart');
+		shuffleButton.href += '&shuffle=1';
+		shuffleButton.innerText = 'シャッフル再生';
+		const seriesPlayButtons = document.createElement('div');
+		seriesPlayButtons.append(autoPlayButton, shuffleButton);
+		seriesPlayButtons.classList.add('SeriesPlayMenu');
+		Object.assign(seriesPlayButtons.style, {
+			display: 'flex',
+			marginTop: '8px',
+			gap: '8px',
+		});
+		document.querySelector('.SeriesDetailContainer').append(seriesPlayButtons)
 	}
 	if (location.host === 'ch.nicovideo.jp') {
 		uq('#sec_current a.item').closest('li').forEach(li => {
