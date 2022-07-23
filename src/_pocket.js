@@ -593,7 +593,7 @@ AntiPrototypeJs().then(() => {
         <span slot="video-title">【実況】どんぐりころころの大冒険 Part1(最終回)</span>
         <a href="/watch/sm9" slot="watch-link"></a>
         <img slot="video-thumbnail" data-type="image">
-        <a slot="owner-page-link" href="https://www.nicovideo.jp/user/1234" class="owner-page-link target-change" data-type="link" rel="noopener"><img slot="owner-icon" class="owner-icon" src="https://nicovideo.cdn.nimg.jp/web/img/user/thumb/blank_s.jpg" data-type="image"></img></a>
+        <a slot="owner-page-link" href="https://www.nicovideo.jp/user/1234" class="owner-page-link target-change" data-type="link" rel="noopener"><img slot="owner-icon" class="owner-icon" src="https://secure-dcdn.cdn.nimg.jp/nicoaccount/usericon/defaults/blank_s.jpg" data-type="image"></img></a>
 
         <span slot="upload-date"     data-type="date">1970/01/01 00:00</span>
         <span slot="view-counter"    data-type="int">12,345</span>

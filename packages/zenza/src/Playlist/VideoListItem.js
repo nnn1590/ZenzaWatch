@@ -34,7 +34,7 @@ class VideoListItem {
       num_res: 0,
       mylist_counter: 0,
       view_counter: 0,
-      thumbnail_url: 'https://nicovideo.cdn.nimg.jp/web/img/user/thumb/blank_s.jpg',
+      thumbnail_url: 'https://nicovideo.cdn.nimg.jp/web/images/bundle/nicovideo/components/Thumbnail/Thumbnail-placeholder.jpg',
       first_retrieve: postedAt,
     });
   }
