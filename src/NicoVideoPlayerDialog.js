@@ -2753,7 +2753,6 @@ class VideoHoverMenu {
     const ul = document.createElement('ul');
     mylistList.forEach(mylist => {
       const li = document.createElement('li');
-      li.className = `folder${mylist.icon_id}`;
 
       const icon = document.createElement('span');
       icon.className = 'mylistIcon command';
@@ -2763,6 +2762,24 @@ class VideoHoverMenu {
         command: 'mylistOpen'
       });
       icon.title = mylist.name + 'を開く';
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      const folder = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      folder.setAttribute('d', 'M1 6V5c0-1.1.9-2 2-2h7a2 2 0 011.6.9L13 6h8a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6z');
+      if (mylist.isPublic) {
+        folder.setAttribute('fill-rule', 'evenodd');
+        svg.append(folder);
+      } else {
+        const graph = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        graph.setAttribute('fill-rule', 'evenodd');
+        const locked = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        locked.setAttribute('fill', '#FFF');
+        locked.setAttribute('d', 'M17 13v-.5a1.5 1.5 0 00-3 0v.5h3zm2 0h1.2c.4 0 .8.4.8.9V19c0 .5-.4.9-.9.9H11a.9.9 0 01-.9-.9V14c0-.5.4-.9.9-.9H12v-.5a3.5 3.5 0 117 0v.5zm-3.5 2a1.5 1.5 0 100 3 1.5 1.5 0 000-3z');
+        graph.append(folder, locked);
+        svg.append(graph);
+      }
+      icon.append(svg);
 
       const link = document.createElement('a');
       link.className = 'mylistLink name command';
@@ -3219,9 +3236,7 @@ class VideoHoverMenu {
         width: 18px;
         height: 14px;
         margin: -4px 4px 0 0;
-        vertical-align: middle;
         margin-right: 15px;
-        background: url("//nicovideo.cdn.nimg.jp/uni/img/zero_my/icon_folder_default.png") no-repeat scroll 0 0 transparent;
         transform: scale(1.5);
         transform-origin: 0 0 0;
         transition: transform 0.1s ease, box-shadow 0.1s ease;
@@ -3236,16 +3251,11 @@ class VideoHoverMenu {
         z-index: 100;
         opacity: 1;
       }
-      .mylistSelectMenu .deflist .mylistIcon { background-position: 0 -253px;}
-      .mylistSelectMenu .folder1 .mylistIcon { background-position: 0 -23px;}
-      .mylistSelectMenu .folder2 .mylistIcon { background-position: 0 -46px;}
-      .mylistSelectMenu .folder3 .mylistIcon { background-position: 0 -69px;}
-      .mylistSelectMenu .folder4 .mylistIcon { background-position: 0 -92px;}
-      .mylistSelectMenu .folder5 .mylistIcon { background-position: 0 -115px;}
-      .mylistSelectMenu .folder6 .mylistIcon { background-position: 0 -138px;}
-      .mylistSelectMenu .folder7 .mylistIcon { background-position: 0 -161px;}
-      .mylistSelectMenu .folder8 .mylistIcon { background-position: 0 -184px;}
-      .mylistSelectMenu .folder9 .mylistIcon { background-position: 0 -207px;}
+      .mylistSelectMenu .mylistIcon > svg {
+        fill: #666;
+        width: 100%;
+        height: 100%;
+      }
 
 
       .mylistSelectMenu .name {
