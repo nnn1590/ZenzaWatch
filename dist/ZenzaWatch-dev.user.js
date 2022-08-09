@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.22
+// @version        2.6.3-fix-playlist.23
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // ==/UserScript==
@@ -100,7 +100,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.22';
+    var VER = '2.6.3-fix-playlist.23';
     const ENV = 'DEV';
 
 
@@ -6960,58 +6960,58 @@ const MylistApiLoader = (() => {
 			}
 			return Promise.reject();
 		}
-		async removeDeflistItem(watchId) {
+		async removeDeflistItem(watchId, { frontendId = 6, frontendVersion = 0 } = {}) {
 			const item = await this.findDeflistItemByWatchId(watchId).catch(result => {
 				throw new Error('動画が見つかりません', {result, status: 'fail'});
 			});
-			await this._getCsrfToken().catch(result => {
-					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
-			});
-			const url = 'https://www.nicovideo.jp/api/deflist/delete';
-			const body = `id_list[0][]=${item.itemId}&token=${token}`;
+			const body = `itemIds=${item.itemId}`;
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/watch-later?' + body;
 			const cacheKey = 'deflistItems';
-			const req = {
-				method: 'POST',
-				body,
-				headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+			const result = await netUtil.fetch(url, {
+				method: 'DELETE',
+				headers: {
+					'X-Frontend-Id': frontendId,
+					'X-Frontend-Version': frontendVersion,
+					'X-Request-With': 'https://www.nicovideo.jp'
+				},
 				credentials: 'include'
-			};
-			const result = await netUtil.fetch(url, req)
-				.then(r => r.json()).catch(e => e || {});
-			if (result && result.status && result.status === 'ok' ) {
+			}).then(r => r.json())
+				.catch(result => {
+					throw new Error('とりあえずマイリストから削除失敗(2)', { result, status: 'fail' });
+				});
+			if (result.meta.status && result.meta.status === 200) {
 				cacheStorage.removeItem(cacheKey);
 				emitter.emitAsync('deflistRemove', watchId);
 				return {
 					status: 'ok',
-					result: result,
+					result,
 					message: 'とりあえずマイリストから削除'
 				};
 			}
-				throw new Error(result.error.description, {
+			throw new Error(result.error.description, {
 					status: 'fail', result, code: result.error.code
-				});
+			});
 		}
-		async removeMylistItem(watchId, groupId) {
-			await this._getCsrfToken().catch(result => {
-					throw new Error('トークンの取得に失敗しました', {result, status: 'fail'});
-				});
+		async removeMylistItem(watchId, groupId, { frontendId = 6, frontendVersion = 0 } = {}) {
 			const item = await this.findMylistItemByWatchId(watchId, groupId).catch(result => {
 					throw new Error('動画が見つかりません', {result, status: 'fail'});
 				});
-			const url = 'https://www.nicovideo.jp/api/mylist/delete';
-			window.console.log('delete item:', item);
-			const body = 'id_list[0][]=' + item.itemId + '&token=' + token + '&group_id=' + groupId;
+			let body = 'itemIds=' + watchId;
+			const url = 'https://nvapi.nicovideo.jp/v1/users/me/mylists/' + groupId + '/items?' + body;
 			const cacheKey = `mylistItems: ${groupId}`;
 			const result = await netUtil.fetch(url, {
-				method: 'POST',
-				body,
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded'},
+				method: 'DELETE',
+				headers: {
+					'X-Frontend-Id': frontendId,
+					'X-Frontend-Version': frontendVersion,
+					'X-Request-With': 'https://www.nicovideo.jp'
+				},
 				credentials: 'include'
 			}).then(r => r.json())
 				.catch(result => {
 					throw new Error('マイリストから削除失敗(2)', {result, status: 'fail'});
 				});
-			if (result.status && result.status === 'ok') {
+			if (result.meta.status && result.meta.status === 200) {
 				cacheStorage.removeItem(cacheKey);
 				emitter.emitAsync('mylistRemove', watchId, groupId);
 				return {
@@ -7026,7 +7026,7 @@ const MylistApiLoader = (() => {
 				code: result.error.code
 			});
 		}
-		async _addDeflistItem(watchId, description, isRetry, { frontendId = 6, frontendVersion = 0 } = {}) {
+		async addDeflistItem(watchId, description, isRetry = false, { frontendId = 6, frontendVersion = 0 } = {}) {
 			let url = 'https://nvapi.nicovideo.jp/v1/users/me/watch-later';
 			let body = `watchId=${watchId}&memo=`;
 			if (description) {
@@ -7053,7 +7053,8 @@ const MylistApiLoader = (() => {
 					result,
 					message: 'とりあえずマイリスト登録'
 				};
-			}else if(result.meta.status && result.meta.status === 409){
+			}
+			if (result.meta.status && result.meta.status === 409 && !isRetry) {
 					await this.removeDeflistItem(watchId).catch(err => {
 							throw new Error('とりあえずマイリスト登録失敗(101)', {
 								status: 'fail',
@@ -7061,7 +7062,7 @@ const MylistApiLoader = (() => {
 								code: err.code
 							});
 						});
-					const added = await this._addDeflistItem(watchId, description, true);
+					const added = await this.addDeflistItem(watchId, description, true, {frontendId, frontendVersion});
 					return {
 						status: 'ok',
 						result: added,
@@ -7074,32 +7075,12 @@ const MylistApiLoader = (() => {
 					result,
 				});
 			}
-			if (result.error.code !== 'EXIST' || isRetry) {
 				throw new Error(result.error.description, {
 					status: 'fail',
 					result,
 					code: result.error.code,
 					message: result.error.description
 				});
-			}
-/*
-			await self.removeDeflistItem(watchId).catch(err => {
-					throw new Error('とりあえずマイリスト登録失敗(101)', {
-						status: 'fail',
-						result: err.result,
-						code: err.code
-					});
-				});
-			const added = await self._addDeflistItem(watchId, description, true);
-			return {
-				status: 'ok',
-				result: added,
-				message: 'とりあえずマイリストの先頭に移動'
-			};
-*/
-		}
-		addDeflistItem(watchId, description, frontendId, frontendVersion) {
-			return this._addDeflistItem(watchId, description, false,frontendId, frontendVersion);
 		}
 		async addMylistItem(watchId, groupId, description, { frontendId = 6, frontendVersion = 0 } = {}) {
 			let body = 'itemId=' + watchId + '&description=';//+ '&token=' + token + '&group_id=' + groupId;
@@ -21136,7 +21117,7 @@ class VideoListItem {
 			num_res: 0,
 			mylist_counter: 0,
 			view_counter: 0,
-			thumbnail_url: 'https://nicovideo.cdn.nimg.jp/web/img/user/thumb/blank_s.jpg',
+			thumbnail_url: 'https://nicovideo.cdn.nimg.jp/web/images/bundle/nicovideo/components/Thumbnail/Thumbnail-placeholder.jpg',
 			first_retrieve: postedAt,
 		});
 	}
@@ -25932,7 +25913,6 @@ class VideoHoverMenu {
 		const ul = document.createElement('ul');
 		mylistList.forEach(mylist => {
 			const li = document.createElement('li');
-			li.className = `folder${mylist.icon_id}`;
 			const icon = document.createElement('span');
 			icon.className = 'mylistIcon command';
 			Object.assign(icon.dataset, {
@@ -25941,6 +25921,23 @@ class VideoHoverMenu {
 				command: 'mylistOpen'
 			});
 			icon.title = mylist.name + 'を開く';
+			const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			svg.setAttribute('viewBox', '0 0 24 24');
+			const folder = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			folder.setAttribute('d', 'M1 6V5c0-1.1.9-2 2-2h7a2 2 0 011.6.9L13 6h8a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6z');
+			if (mylist.isPublic) {
+				folder.setAttribute('fill-rule', 'evenodd');
+				svg.append(folder);
+			} else {
+				const graph = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+				graph.setAttribute('fill-rule', 'evenodd');
+				const locked = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+				locked.setAttribute('fill', '#FFF');
+				locked.setAttribute('d', 'M17 13v-.5a1.5 1.5 0 00-3 0v.5h3zm2 0h1.2c.4 0 .8.4.8.9V19c0 .5-.4.9-.9.9H11a.9.9 0 01-.9-.9V14c0-.5.4-.9.9-.9H12v-.5a3.5 3.5 0 117 0v.5zm-3.5 2a1.5 1.5 0 100 3 1.5 1.5 0 000-3z');
+				graph.append(folder, locked);
+				svg.append(graph);
+			}
+			icon.append(svg);
 			const link = document.createElement('a');
 			link.className = 'mylistLink name command';
 			link.textContent = mylist.name;
@@ -26358,9 +26355,7 @@ class VideoHoverMenu {
 				width: 18px;
 				height: 14px;
 				margin: -4px 4px 0 0;
-				vertical-align: middle;
 				margin-right: 15px;
-				background: url("//nicovideo.cdn.nimg.jp/uni/img/zero_my/icon_folder_default.png") no-repeat scroll 0 0 transparent;
 				transform: scale(1.5);
 				transform-origin: 0 0 0;
 				transition: transform 0.1s ease, box-shadow 0.1s ease;
@@ -26375,16 +26370,11 @@ class VideoHoverMenu {
 				z-index: 100;
 				opacity: 1;
 			}
-			.mylistSelectMenu .deflist .mylistIcon { background-position: 0 -253px;}
-			.mylistSelectMenu .folder1 .mylistIcon { background-position: 0 -23px;}
-			.mylistSelectMenu .folder2 .mylistIcon { background-position: 0 -46px;}
-			.mylistSelectMenu .folder3 .mylistIcon { background-position: 0 -69px;}
-			.mylistSelectMenu .folder4 .mylistIcon { background-position: 0 -92px;}
-			.mylistSelectMenu .folder5 .mylistIcon { background-position: 0 -115px;}
-			.mylistSelectMenu .folder6 .mylistIcon { background-position: 0 -138px;}
-			.mylistSelectMenu .folder7 .mylistIcon { background-position: 0 -161px;}
-			.mylistSelectMenu .folder8 .mylistIcon { background-position: 0 -184px;}
-			.mylistSelectMenu .folder9 .mylistIcon { background-position: 0 -207px;}
+			.mylistSelectMenu .mylistIcon > svg {
+				fill: #666;
+				width: 100%;
+				height: 100%;
+			}
 			.mylistSelectMenu .name {
 				display: inline-block;
 				width: calc(100% - 20px);
