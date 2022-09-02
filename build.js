@@ -273,7 +273,10 @@ function loadTemplateFile(srcDir, indexFile, outFile, params) {
       }
     }
     if (line.match(/\/\/ *==\/UserScript==/)) {
-      line +='\n/* eslint-disable */';
+      lines.push(`// @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/${outFile}`);
+      lines.push(line);
+      lines.push('/* eslint-disable */');
+      return;
     }
     if (line.match(/^(\s*)\/\/\s*@environment$/)) {
       lines.push(`${RegExp.$1}const ENV = '${params.dev ? 'DEV' : 'STABLE'}';\n`);
@@ -288,7 +291,7 @@ function loadTemplateFile(srcDir, indexFile, outFile, params) {
         lines.push(RegExp.$1 + 'var VER = \'' + ver + '\';');
       }
       return;
-    } else
+    }
     if ((params.dev && line.match(/^\s*\/\/@dev-require (.+)$/)) ||
       line.match(/^\s*\/\/@require (.+)$/)) {
       const m = (RegExp.$1 || '').trim()
