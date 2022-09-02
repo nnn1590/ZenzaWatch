@@ -651,7 +651,7 @@ util.addStyle(`
     opacity: 1;
   }
   .controlButton:active .controlButtonInner {
-    transform: translate(0, 2px);
+    transform: translate(0, 2px) scale(0.8);
   }
 
   .is-abort   .playControl,
@@ -1056,26 +1056,11 @@ util.addStyle(`
     padding: 3px 4px;
   }
 
-  .screenModeMenu {
-    width:  32px;
-    height: 32px;
-    line-height: 30px;
-    font-size: 20px;
-  }
-  .screenModeMenu:active {
-    font-size: 15px;
-  }
-
-
   .screenModeMenu:focus-within {
     background: #888;
   }
   .screenModeMenu:focus-within .tooltip {
     display: none;
-  }
-
-  .screenModeMenu:active {
-    font-size: 10px;
   }
 
   .screenModeSelectMenu {
@@ -1116,6 +1101,8 @@ util.addStyle(`
 
   .fullscreenControlBarModeMenu {
     display: none;
+    font-size: 16px;
+    white-space: nowrap;
   }
   .fullscreenControlBarModeMenu .controlButtonInner {
     filter: grayscale(100%);
@@ -1214,10 +1201,7 @@ util.addStyle(`
   }
 
   .videoServerTypeMenu {
-    bottom: 0;
     min-width: 40px;
-    height:    32px;
-    line-height: 30px;
     font-size: 16px;
     white-space: nowrap;
   }
@@ -1244,9 +1228,6 @@ util.addStyle(`
   }
 
 
-  .videoServerTypeMenu:active {
-    font-size: 13px;
-  }
   .videoServerTypeMenu:focus-within {
     background: #888;
   }
