@@ -558,6 +558,7 @@ util.addStyle(`
   .videoControlBar * {
     box-sizing: border-box;
     user-select: none;
+    line-break: auto;
   }
 
   .videoControlBar.is-wheelSeeking {
