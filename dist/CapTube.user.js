@@ -8,6 +8,7 @@
 // @version     0.0.11
 // @grant       none
 // @license     public domain
+// @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/CapTube.user.js
 // ==/UserScript==
 /* eslint-disable */
 

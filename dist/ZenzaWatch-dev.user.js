@@ -32,9 +32,10 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.23
+// @version        2.6.3-fix-playlist.24
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
+// @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
 // ==/UserScript==
 /* eslint-disable */
 // import {SettingPanel} from './SettingPanel';
@@ -100,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.23';
+    var VER = '2.6.3-fix-playlist.24';
     const ENV = 'DEV';
 
 
@@ -12769,6 +12770,7 @@ util.addStyle(`
 	.videoControlBar * {
 		box-sizing: border-box;
 		user-select: none;
+		line-break: auto;
 	}
 	.videoControlBar.is-wheelSeeking {
 		pointer-events: none;
@@ -12851,7 +12853,7 @@ util.addStyle(`
 		opacity: 1;
 	}
 	.controlButton:active .controlButtonInner {
-		transform: translate(0, 2px);
+		transform: translate(0, 2px) scale(0.8);
 	}
 	.is-abort   .playControl,
 	.is-error   .playControl,
@@ -13219,23 +13221,11 @@ util.addStyle(`
 	.playbackRateSelectMenu li {
 		padding: 3px 4px;
 	}
-	.screenModeMenu {
-		width:  32px;
-		height: 32px;
-		line-height: 30px;
-		font-size: 20px;
-	}
-	.screenModeMenu:active {
-		font-size: 15px;
-	}
 	.screenModeMenu:focus-within {
 		background: #888;
 	}
 	.screenModeMenu:focus-within .tooltip {
 		display: none;
-	}
-	.screenModeMenu:active {
-		font-size: 10px;
 	}
 	.screenModeSelectMenu {
 		width: 148px;
@@ -13271,6 +13261,8 @@ util.addStyle(`
 	}
 	.fullscreenControlBarModeMenu {
 		display: none;
+		font-size: 16px;
+		white-space: nowrap;
 	}
 	.fullscreenControlBarModeMenu .controlButtonInner {
 		filter: grayscale(100%);
@@ -13358,10 +13350,7 @@ util.addStyle(`
 		transform: scale(0.75);
 	}
 	.videoServerTypeMenu {
-		bottom: 0;
 		min-width: 40px;
-		height:    32px;
-		line-height: 30px;
 		font-size: 16px;
 		white-space: nowrap;
 	}
@@ -13385,9 +13374,6 @@ util.addStyle(`
 	}
 	.is-youTube .videoServerTypeMenu.forYouTube {
 		display: inline-block;
-	}
-	.videoServerTypeMenu:active {
-		font-size: 13px;
 	}
 	.videoServerTypeMenu:focus-within {
 		background: #888;

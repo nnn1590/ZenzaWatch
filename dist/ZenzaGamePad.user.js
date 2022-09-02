@@ -8,6 +8,7 @@
 // @license     public domain
 // @grant       none
 // @noframes
+// @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaGamePad.user.js
 // ==/UserScript==
 /* eslint-disable */
 
