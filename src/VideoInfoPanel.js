@@ -1174,6 +1174,16 @@ class VideoHeaderPanel extends Emitter {
       classList.toggle('is-notFullscreen', !isFull);
     });
 
+    new MutationObserver((mutationList) => {
+      for (const mutation of mutationList) {
+        if (mutation.type !== 'attributes') return;
+        if (mutation.attributeName !== 'data-screen-mode') return;
+
+        this._resetHeight();
+        window.setTimeout(() => this._onResize(), 1000);
+        break;
+      }
+    }).observe(window.document.body, {attributes: true});
     window.addEventListener('resize', _.debounce(this._onResize.bind(this), 500));
   }
   update(videoInfo) {
@@ -1208,10 +1218,14 @@ class VideoHeaderPanel extends Emitter {
       this._seriesCover.removeAttribute('style');
     }
 
+    this._resetHeight();
     window.setTimeout(() => this._onResize(), 1000);
   }
   updateVideoCount(...args) {
     this._videoMetaInfo.updateVideoCount(...args);
+  }
+  _resetHeight() {
+    this._height = undefined;
   }
   _onResize() {
     const view = this._$view[0];
