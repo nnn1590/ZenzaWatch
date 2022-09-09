@@ -1217,9 +1217,12 @@ class VideoHeaderPanel extends Emitter {
     const view = this._$view[0];
     const rect = view.getBoundingClientRect();
     const isOnscreen = this.classList.contains('is-onscreen');
-    const height = rect.bottom - rect.top;
+    const height = this._height ?? (rect.bottom - rect.top);
+    if (!this._height && !isOnscreen) {
+      this._height = height;
+    }
     const top = isOnscreen ? (rect.top - height) : rect.top;
-    this.classList.toggle('is-onscreen', top < -32);
+    this.classList.toggle('is-onscreen', top < -20);
   }
   appendTo(node) {
     this._initializeDom();
