@@ -1196,6 +1196,16 @@ class VideoHeaderPanel extends Emitter {
       classList.toggle('is-notFullscreen', !isFull);
     });
 
+    new MutationObserver((mutationList) => {
+      for (const mutation of mutationList) {
+        if (mutation.type !== 'attributes') return;
+        if (mutation.attributeName !== 'data-screen-mode') return;
+
+        this._resetHeight();
+        window.setTimeout(() => this._onResize(), 1000);
+        break;
+      }
+    }).observe(window.document.body, {attributes: true});
     window.addEventListener('resize', _.debounce(this._onResize.bind(this), 500));
   }
   update(videoInfo) {
@@ -1230,18 +1240,25 @@ class VideoHeaderPanel extends Emitter {
       this._seriesCover.removeAttribute('style');
     }
 
+    this._resetHeight();
     window.setTimeout(() => this._onResize(), 1000);
   }
   updateVideoCount(...args) {
     this._videoMetaInfo.updateVideoCount(...args);
   }
+  _resetHeight() {
+    this._height = undefined;
+  }
   _onResize() {
     const view = this._$view[0];
     const rect = view.getBoundingClientRect();
     const isOnscreen = this.classList.contains('is-onscreen');
-    const height = rect.bottom - rect.top;
+    const height = this._height ?? (rect.bottom - rect.top);
+    if (!this._height && !isOnscreen) {
+      this._height = height;
+    }
     const top = isOnscreen ? (rect.top - height) : rect.top;
-    this.classList.toggle('is-onscreen', top < -32);
+    this.classList.toggle('is-onscreen', top < -20);
   }
   appendTo(node) {
     this._initializeDom();
@@ -1339,16 +1356,11 @@ css.addStyle(`
       transition: 0.5s opacity;
     }
 
-    .zenzaWatchVideoHeaderPanel.is-onscreen .videoTagsContainer {
+    .zenzaWatchVideoHeaderPanel.is-onscreen:not(:hover) .videoTagsContainer {
       display: none;
-      width: calc(100% - 240px);
-    }
-
-    .zenzaWatchVideoHeaderPanel.is-onscreen:hover .videoTagsContainer {
-      display: block;
     }
     .zenzaWatchVideoHeaderPanel.is-onscreen .videoTitleContainer {
-      width: calc(100% - 180px);
+      width: calc(100% - 220px);
     }
 
     .zenzaWatchVideoInfoPanelFoot {
@@ -1379,17 +1391,12 @@ css.addStyle(`
     transition: 0.5s opacity;
   }
 
-  .is-open .videoTagsContainer {
+  .is-open .zenzaWatchVideoHeaderPanel:not(:hover) .videoTagsContainer {
     display: none;
-    width: calc(100% - 240px);
-  }
-
-  .is-open .zenzaWatchVideoHeaderPanel:hover .videoTagsContainer {
-    display: block;
   }
 
   .is-open .zenzaWatchVideoHeaderPanel .videoTitleContainer {
-    width: calc(100% - 180px);
+    width: calc(100% - 220px);
   }
 
 `, {className: 'screenMode for-full videoHeaderPanel', disabled: true});
@@ -1724,7 +1731,10 @@ VideoSearchForm.__css__ = (`
       z-index: 1000;
     }
 
-    .zenzaScreenMode_normal .zenzaWatchVideoHeaderPanel.is-onscreen .zenzaVideoSearchPanel,
+    .zenzaScreenMode_normal .zenzaWatchVideoHeaderPanel.is-onscreen .zenzaVideoSearchPanel {
+      top: 36px;
+      right: -24px;
+    }
     .zenzaScreenMode_big    .zenzaWatchVideoHeaderPanel.is-onscreen .zenzaVideoSearchPanel,
     .zenzaScreenMode_3D    .zenzaVideoSearchPanel,
     .zenzaScreenMode_wide  .zenzaVideoSearchPanel,
@@ -1770,6 +1780,7 @@ VideoSearchForm.__css__ = (`
      .zenzaVideoSearchPanel .searchModeLabel span {
         display: inline-block;
         padding: 4px 8px;
+        line-height: 1;
         color: #666;
         cursor: pointer;
         border-radius: 8px;
@@ -1789,7 +1800,7 @@ VideoSearchForm.__css__ = (`
 
     .zenzaVideoSearchPanel .searchWord {
       white-space: nowrap;
-      padding: 4px;
+      padding: 0 4px;
     }
 
       .zenzaVideoSearchPanel .searchWordInput {
@@ -1890,7 +1901,6 @@ VideoSearchForm.__css__ = (`
     .zenzaVideoSearchPanel .searchInputFoot {
       white-space: nowrap;
       position: absolute;
-      padding: 4px 0;
       opacity: 0;
       padding: 4px;
       pointer-events: none;
