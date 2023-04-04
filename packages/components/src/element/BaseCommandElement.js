@@ -1,7 +1,7 @@
 // import {html, render} from 'lit/html.js';
-// import * as lit from 'https://unpkg.com/lit?module'; //https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
+// import * as lit from 'https://esm.run/lit';
 import * as lit from '../../../../node_modules/lit/html.js';
-// import * as lit from 'https://unpkg.com/lit?module'; //'https://cdn.jsdelivr.net/npm/lit@2.0.2/html.js';
+// import * as lit from 'https://esm.run/lit';
 // const {html, render} = lit;
 const dll = {lit};
 import {util} from '../util/util.js';
@@ -21,7 +21,7 @@ class BaseCommandElement extends HTMLElement {
     if (dll.lit) {
       return dll.lit;
     }
-    dll.lit = await util.dimport('https://unpkg.com/lit?module');
+    dll.lit = await util.dimport('https://esm.run/lit');
     return dll.lit;
   }
 

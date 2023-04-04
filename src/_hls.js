@@ -2692,7 +2692,7 @@ AntiPrototypeJs().then(() => {
       }).then(ZenzaWatch => {
 
         Promise.all([
-          dimport('https://unpkg.com/lit@2.0.2/html.js?module')
+          dimport('https://esm.run/lit@2.0.2/html.js')
         ]).then(([{html, render}]) => {
           initDebug({hlsConfig, html, render, ZenzaWatch});
         });

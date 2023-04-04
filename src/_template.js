@@ -160,10 +160,10 @@ await Config.promise('restore');
       state: {},
       dll
     };
-    Promise.all([//https://unpkg.com/lit@2.0.2/html.js?module
-      dimport('https://unpkg.com/lit@2.0.2/html.js?module'),
-      dimport('https://unpkg.com/lit@2.0.2/directives/repeat?module'),
-      dimport('https://unpkg.com/lit@2.0.2/directives/class-map?module')
+    Promise.all([//https://esm.run/lit@2.0.2/html.js
+      dimport('https://esm.run/lit@2.0.2/html.js'),
+      dimport('https://esm.run/lit@2.0.2/directives/repeat'),
+      dimport('https://esm.run/lit@2.0.2/directives/class-map')
     ]).then(([lit, ...directives]) => {
       dll.lit = lit;
       dll.directives = Object.assign({}, ...directives);
