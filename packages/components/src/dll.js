@@ -1,6 +1,6 @@
-import * as lit from 'https://unpkg.com/lit?module';
-import {repeat} from 'https://unpkg.com/lit/directives/repeat?module';
-import {classMap} from 'https://unpkg.com/lit/directives/class-map?module';
+import * as lit from 'https://esm.run/lit';
+import {repeat} from 'https://esm.run/lit/directives/repeat';
+import {classMap} from 'https://esm.run/lit/directives/class-map';
 
 const dll = { directives: {}};
 //===BEGIN===
