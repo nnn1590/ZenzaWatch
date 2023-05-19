@@ -39,7 +39,7 @@ const {ThreadLoader} = (() => {
       return 1000;
     }
 
-    getThreadKey(videoId, options = {}) {
+    async getThreadKey(videoId, options = {}) {
       let url = `https://nvapi.nicovideo.jp/v1/comment/keys/thread?videoId=${videoId}`;
 
       console.log('getThreadKey url: ', url);
@@ -47,19 +47,16 @@ const {ThreadLoader} = (() => {
         'X-Frontend-Id': 6,
         'X-Frontend-Version': 0
       }, options.cookie ? {Cookie: options.cookie} : {});
-      return netUtil.fetch(url, {
-        headers,
-        credentials: 'include'
-      }).then(res => res.json()).then(e => {
-        const result = e.data;
-        this._threadKeys[videoId] = result.threadKey;
-        return result;
-      }).catch(result => {
-        return Promise.reject({
-          result,
-          message: `ThreadKeyの取得失敗 ${videoId}`
-        });
-      });
+      try {
+        const { data } = await netUtil.fetch(url, {
+          headers,
+          credentials: 'include'
+        }).then(res => res.json());
+        this._threadKeys[videoId] = data.threadKey;
+        return data
+      } catch (result) {
+        throw { result, message: `ThreadKeyの取得失敗 ${videoId}` }
+      }
     }
 
     getLangCode(language = '') {
@@ -70,7 +67,7 @@ const {ThreadLoader} = (() => {
       return 0;
     }
 
-    getPostKey(threadId, options = {}) {
+    async getPostKey(threadId, options = {}) {
       const url = `https://nvapi.nicovideo.jp/v1/comment/keys/post?threadId=${threadId}`;
 
       console.log('getPostKey url: ', url);
@@ -78,15 +75,15 @@ const {ThreadLoader} = (() => {
         'X-Frontend-Id': 6,
         'X-Frontend-Version': 0
       }, options.cookie ? {Cookie: options.cookie} : {});
-      return netUtil.fetch(url, {
-        headers,
-        credentials: 'include'
-      }).then(res => res.json()).then(e => e.data).catch(result => {
-        return Promise.reject({
-          result,
-          message: `PostKeyの取得失敗 ${threadId}`
-        });
-      });
+      try {
+        const { data } = await netUtil.fetch(url, {
+          headers,
+          credentials: 'include'
+        }).then(res => res.json());
+        return data
+      } catch (result) {
+        throw { result, message: `PostKeyの取得失敗 ${threadId}` }
+      }
     }
 
     buildPacketData(msgInfo, options = {}) {
@@ -186,8 +183,8 @@ const {ThreadLoader} = (() => {
         if (msgInfo.threadKey[threadId]) { return; }
         msgInfo.threadKey[threadId] = {};
         return this.getThreadKey(threadId, { language, ...options }).then(info => {
-          console.log('threadKey: ', threadId, info);
-          msgInfo.threadKey[threadId] = info.threadKey;
+        console.log('threadKey: ', threadId, info);
+        msgInfo.threadKey[threadId] = info.threadKey;
         });
       };
 
