@@ -277,7 +277,7 @@ const {ThreadLoader} = (() => {
       msgInfo.threadInfo = threadInfo;
 
       console.log('threadInfo: ', threadInfo);
-      return {threadInfo, body: result};
+      return {threadInfo, body: result, format: 'threads'};
     }
 
     async _postChat(threadInfo, postkey, text, cmd, vpos) {
