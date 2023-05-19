@@ -150,12 +150,16 @@ const {ThreadLoader} = (() => {
       return packet.outerHTML;
     }
 
-    _post(server, body, options = {}) {
-      const url = server;
+    _post(url, body, options = {}) {
+      const headers = {
+        'X-Frontend-Id': 6,
+        'X-Frontend-Version': 0,
+        'Content-Type': 'text/plain; charset=UTF-8'
+      };
       return netUtil.fetch(url, {
         method: 'POST',
         dataType: 'text',
-        headers: {'Content-Type': 'text/plain; charset=UTF-8'},
+        headers,
         body
       }).then(res => {
         if (options.format !== 'xml') {
@@ -281,52 +285,37 @@ const {ThreadLoader} = (() => {
       return {threadInfo, body: result, format: 'threads'};
     }
 
-    async _postChat(threadInfo, postkey, text, cmd, vpos) {
-      const packet = JSON.stringify([{chat: {
-        content: text,
-        mail: cmd || '',
-        vpos: vpos || 0,
-        premium: util.isPremium() ? 1 : 0,
-        postkey,
-        user_id: threadInfo.userId.toString(),
-        ticket: threadInfo.ticket,
-        thread: threadInfo.threadId.toString()
-      }}]);
+    async _postChat(threadInfo, postKey, text, cmd, vpos) {
+      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadInfo.threadId}/comments`
+      const packet = JSON.stringify({
+        body: text,
+        commands: cmd?.split(/[\x20\xA0\u3000\t\u2003\s]+/) ?? [],
+        vposMs: Math.floor((vpos || 0) * 10),
+        postKey,
+        videoId: threadInfo.videoId,
+      });
       console.log('post packet: ', packet);
-      const server = threadInfo.server.replace('/api/', '/api.json/');
-      const result = await this._post(server, packet, 'json');
+      const result = await this._post(url, packet, 'json');
 
-      let status = null, chat_result, no = 0, blockNo = 0;
-      try {
-        chat_result = result.find(t => t.chat_result).chat_result;
-        status = chat_result.status * 1;
-        no = parseInt(chat_result.no, 10);
-        blockNo = Math.floor((no + 1) / 100);
-      } catch (e) {
-        console.error(e);
-      }
-      if (status === 0) {
+      if (result.data) {
+        const { no, id } = result.data;
         return {
           status: 'ok',
           no,
-          blockNo,
-          code: status,
+          id,
           message: 'コメント投稿成功'
         };
       }
-      return Promise.reject({
+      throw {
         status: 'fail',
-        no,
-        blockNo,
-        code: status,
-        message: `コメント投稿失敗 status: ${status} server: ${threadInfo.server}`
-      });
+        message: `コメント投稿失敗`
+      };
     }
 
     async postChat(msgInfo, text, cmd, vpos, lang) {
       const threadInfo = msgInfo.threadInfo;
       const tk = await this.getPostKey(threadInfo.threadId, { language: lang });
-      const postkey = tk.postkey;
+      const postkey = tk.postKey;
       let result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
       if (result.status === 'ok') {
         return result;
