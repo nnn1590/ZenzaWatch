@@ -39,25 +39,25 @@ const {ThreadLoader} = (() => {
       return 1000;
     }
 
-    getThreadKey(threadId, language = '', options = {}) {
-      let url = `//flapi.nicovideo.jp/api/getthreadkey?thread=${threadId}`;
-      let langCode = this.getLangCode(language);
-      if (langCode) { url = `${url}&language_id=${langCode}`; }
+    getThreadKey(videoId, options = {}) {
+      let url = `https://nvapi.nicovideo.jp/v1/comment/keys/thread?videoId=${videoId}`;
 
-      const headers = options.cookie ? {Cookie: options.cookie} : {};
+      console.log('getThreadKey url: ', url);
+      const headers = Object.assign({
+        'X-Frontend-Id': 6,
+        'X-Frontend-Version': 0
+      }, options.cookie ? {Cookie: options.cookie} : {});
       return netUtil.fetch(url, {
-        method: 'POST',
-        dataType: 'text',
         headers,
         credentials: 'include'
-      }).then(res => res.text()).then(e => {
-        const result = textUtil.parseQuery(e);
-        this._threadKeys[threadId] = result;
+      }).then(res => res.json()).then(e => {
+        const result = e.data;
+        this._threadKeys[videoId] = result.threadKey;
         return result;
       }).catch(result => {
         return Promise.reject({
-          result: result,
-          message: `ThreadKeyの取得失敗 ${threadId}`
+          result,
+          message: `ThreadKeyの取得失敗 ${videoId}`
         });
       });
     }
@@ -70,18 +70,18 @@ const {ThreadLoader} = (() => {
       return 0;
     }
 
-    getPostKey(threadId, blockNo, options = {}) {
-      const url =
-        `//flapi.nicovideo.jp/api/getpostkey?device=1&thread=${threadId}&block_no=${blockNo}&version=1&version_sub=2&yugi=`;
+    getPostKey(threadId, options = {}) {
+      const url = `https://nvapi.nicovideo.jp/v1/comment/keys/post?threadId=${threadId}`;
 
-      console.log('getPostkey url: ', url);
-      const headers = options.cookie ? {Cookie: options.cookie} : {};
+      console.log('getPostKey url: ', url);
+      const headers = Object.assign({
+        'X-Frontend-Id': 6,
+        'X-Frontend-Version': 0
+      }, options.cookie ? {Cookie: options.cookie} : {});
       return netUtil.fetch(url, {
-        method: 'POST',
-        dataType: 'text',
         headers,
         credentials: 'include'
-      }).then(res => res.text()).then(e => textUtil.parseQuery(e)).catch(result => {
+      }).then(res => res.json()).then(e => e.data).catch(result => {
         return Promise.reject({
           result,
           message: `PostKeyの取得失敗 ${threadId}`
@@ -185,9 +185,9 @@ const {ThreadLoader} = (() => {
       const loadThreadKey = threadId => {
         if (msgInfo.threadKey[threadId]) { return; }
         msgInfo.threadKey[threadId] = {};
-        return this.getThreadKey(threadId, language, options).then(info => {
+        return this.getThreadKey(threadId, { language, ...options }).then(info => {
           console.log('threadKey: ', threadId, info);
-          msgInfo.threadKey[threadId] = {key: info.threadkey, force184: info.force_184};
+          msgInfo.threadKey[threadId] = info.threadKey;
         });
       };
 
@@ -339,7 +339,7 @@ const {ThreadLoader} = (() => {
 
     async postChat(msgInfo, text, cmd, vpos, lang) {
       const threadInfo = msgInfo.threadInfo;
-      const tk = await this.getPostKey(threadInfo.threadId, threadInfo.blockNo, lang);
+      const tk = await this.getPostKey(threadInfo.threadId, { language: lang });
       const postkey = tk.postkey;
       let result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
       if (result.status === 'ok') {
