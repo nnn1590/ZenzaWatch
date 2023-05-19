@@ -175,121 +175,109 @@ const {ThreadLoader} = (() => {
       });
     }
 
-    _load(msgInfo, options = {}) {
-      let packet;
-      const language = msgInfo.language;
-      msgInfo.threadKey = msgInfo.threadKey || {};
-      const loadThreadKey = threadId => {
-        if (msgInfo.threadKey[threadId]) { return; }
-        msgInfo.threadKey[threadId] = {};
-        return this.getThreadKey(threadId, { language, ...options }).then(info => {
+    async _load(msgInfo, options = {}) {
+      const language = msgInfo.language.replace('_', '-').toLowerCase();
+      msgInfo.threadKey ||= '';
+      if (msgInfo.threadKey === '') {
+        const info = await this.getThreadKey(this._watchId, { language, ...options });
         console.log('threadKey: ', threadId, info);
-        msgInfo.threadKey[threadId] = info.threadKey;
-        });
+        msgInfo.threadKey = info.threadKey;
+      }
+
+      const packet = {
+        additionals: {},
+        params: {
+          language: language,
+          targets: msgInfo.threads.map(x => ({fork: x.forkLabel, id: String(x.id)}))
+        },
+        threadKey: msgInfo.threadKey
+      }
+      if (msgInfo.when > 0) {
+        packet.additionals.when = msgInfo.when;
+      }
+
+      const url = 'https://nvcomment.nicovideo.jp/v1/threads';
+      console.log('load threads...', url, packet);
+      const headers = {
+        'X-Frontend-Id': 6,
+        'X-Frontend-Version': 0,
+        'Content-Type': 'text/plain; charset=UTF-8'
       };
-
-      const loadThreadKeys = () =>
-        Promise.all(msgInfo.threads.filter(t => t.isThreadkeyRequired).map(t => loadThreadKey(t.id)));
-
-      return Promise.all([loadThreadKeys()]).then(() => {
-        const format = options.format === 'xml' ? 'xml' : 'json';
-        let server = format === 'json' ? msgInfo.server.replace('/api/', '/api.json/') : msgInfo.server;
-        server = server.replace(/^http:/, '');
-        packet = this.buildPacket(msgInfo, format);
-
-        console.log('post packet...', server, packet);
-        return this._post(server, packet, format);
-      });
-
+      try {
+        const result = await netUtil.fetch(url, {
+          method: 'POST',
+          dataType: 'text',
+          headers,
+          body: JSON.stringify(packet)
+        }).then(res => res.json());
+        return result.data;
+      } catch (result) {
+        throw {
+          result,
+          message: `コメントの通信失敗`
+        }
+      }
     }
 
-    load(msgInfo, options = {}) {
-      const server   = msgInfo.server;
-      const threadId = msgInfo.threadId;
+    async load(msgInfo, options = {}) {
+      const videoId = msgInfo.videoId;
       const userId   = msgInfo.userId;
 
-      const timeKey = `loadComment server: ${server} thread: ${threadId}`;
+      const timeKey = `loadComment videoId: ${videoId}`;
       console.time(timeKey);
 
-      const onSuccess = result => {
-        console.timeEnd(timeKey);
-        debug.lastMessageServerResult = result;
-
-        const format = 'array';
-        let thread, totalResCount = 0;
-        let resultCode = null;
-        try {
-          let threads = result.filter(t => t.thread).map(t => t.thread);
-          let lastId = null;
-          Array.from(threads).forEach(t => {
-            let id = parseInt(t.thread, 10);
-            let fork = t.fork || 0;
-            if (lastId === id || fork) {
-              return;
-            }
-            lastId = id;
-            msgInfo[id] = thread;
-            if (parseInt(id, 10) === parseInt(threadId, 10)) {
-              thread = t;
-              resultCode = t.resultcode;
-            }
-            if (!isNaN(t.last_res) && !fork) { // 投稿者コメントはカウントしない
-              totalResCount += t.last_res;
-            }
-          });
-        } catch (e) {
-          console.error(e);
-        }
-
-        if (resultCode !== 0) {
-          console.log('comment fail:\n', result);
-          return Promise.reject({
-            message: `コメント取得失敗[${resultCode}]`
-          });
-        }
-
-        const last_res = isNaN(thread.last_res) ? 0 : thread.last_res * 1;
-        const threadInfo = {
-          server,
-          userId,
-          resultCode,
-          threadId,
-          thread:     thread.thread,
-          serverTime: thread.server_time,
-          force184:   msgInfo.defaultThread.isThreadkeyRequired ? '1' : '0',
-          lastRes:    last_res,
-          totalResCount,
-          blockNo:    Math.floor((last_res + 1) / 100),
-          ticket:     thread.ticket || '0',
-          revision:   thread.revision,
-          language:   msgInfo.language,
-          when:       msgInfo.when,
-          isWaybackMode: !!msgInfo.when
-        };
-
-        msgInfo.threadInfo = threadInfo;
-
-        console.log('threadInfo: ', threadInfo);
-        return Promise.resolve({resultCode, threadInfo, body: result, format});
-      };
-
-      const onFailFinally = e => {
-        console.timeEnd(timeKey);
-        window.console.error('loadComment fail finally: ', e);
-        return Promise.reject({
-          message: 'コメントサーバーの通信失敗: ' + server
-        });
-      };
-
-      const onFail1st = e => {
+      let result;
+      try {
+        result = await this._load(msgInfo, options);
+      } catch (e) {
         console.timeEnd(timeKey);
         window.console.error('loadComment fail 1st: ', e);
         PopupMessage.alert('コメントの取得失敗: 3秒後にリトライ');
 
-        return sleep(3000).then(() => this._load(msgInfo, options).then(onSuccess).catch(onFailFinally));
+        await sleep(3000);
+        try {
+          console.time(timeKey);
+          const result = await this._load(msgInfo, options);
+        } catch (e) {
+          console.timeEnd(timeKey);
+          window.console.error('loadComment fail finally: ', e);
+          throw {
+            message: 'コメントサーバーの通信失敗'
+          }
+        }
+      }
+
+      console.timeEnd(timeKey);
+      debug.lastMessageServerResult = result;
+
+      let totalResCount = result.globalComments[0].count;
+      let threadId;
+      for (const thread of result.threads) {
+        threadId = parseInt(thread.id, 10);
+        const forkLabel = thread.fork;
+        // 投稿者コメントはGlobalにカウントされていない
+        if (forkLabel === 'easy') {
+          // かんたんコメントをカウントしていない挙動に合わせる。不要？
+          const resCount = thread.commentCount;
+          totalResCount -= resCount;
+        }
+      }
+
+      const threadInfo = {
+        userId,
+        videoId,
+        threadId,
+        is184Forced:   msgInfo.defaultThread.is184Forced,
+        totalResCount,
+        language:   msgInfo.language,
+        when:       msgInfo.when,
+        isWaybackMode: !!msgInfo.when
       };
 
-      return this._load(msgInfo, options).then(onSuccess).catch(onFail1st);
+      msgInfo.threadInfo = threadInfo;
+
+      console.log('threadInfo: ', threadInfo);
+      return {threadInfo, body: result};
     }
 
     async _postChat(threadInfo, postkey, text, cmd, vpos) {
