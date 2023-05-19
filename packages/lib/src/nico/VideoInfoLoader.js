@@ -51,7 +51,7 @@ const VideoInfoLoader = (function () {
           owner: ownerNg,
           // viewer,
         },
-        // nvComment,
+        nvComment,
         server: {
           url: commentServer,
         },
@@ -183,6 +183,8 @@ const VideoInfoLoader = (function () {
       server: commentServer,
       threadId: defaultThread.id,
       duration,
+      videoId,
+      nvComment,
       userId: viewerInfo.id,
       isNeedKey: threads.findIndex(t => t.isThreadkeyRequired) >= 0, // (isChannel || isCommunity)
       optionalThreadId: '',

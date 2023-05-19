@@ -176,22 +176,23 @@ const {ThreadLoader} = (() => {
     }
 
     async _load(msgInfo, options = {}) {
-      const language = msgInfo.language.replace('_', '-').toLowerCase();
-      msgInfo.threadKey ||= '';
-      if (msgInfo.threadKey === '') {
-        const info = await this.getThreadKey(this._watchId, { language, ...options });
-        console.log('threadKey: ', threadId, info);
-        msgInfo.threadKey = info.threadKey;
-      }
+      const {
+        params,
+        threadKey
+      } = msgInfo.nvComment
 
       const packet = {
         additionals: {},
-        params: {
-          language: language,
-          targets: msgInfo.threads.map(x => ({fork: x.forkLabel, id: String(x.id)}))
-        },
-        threadKey: msgInfo.threadKey
+        params,
+        threadKey
       }
+
+      if (options.retrying) {
+        const info = await this.getThreadKey(msgInfo.videoId, options);
+        console.log('threadKey: ', msgInfo.videoId, info);
+        packet.threadKey = info.threadKey;
+      }
+
       if (msgInfo.when > 0) {
         packet.additionals.when = msgInfo.when;
       }
@@ -237,7 +238,7 @@ const {ThreadLoader} = (() => {
         await sleep(3000);
         try {
           console.time(timeKey);
-          const result = await this._load(msgInfo, options);
+          const result = await this._load(msgInfo, { retrying: true, ...options });
         } catch (e) {
           console.timeEnd(timeKey);
           window.console.error('loadComment fail finally: ', e);
