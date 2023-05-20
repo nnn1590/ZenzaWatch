@@ -17,10 +17,11 @@ const {ThreadLoader} = (() => {
   const FRONT_ID = '6';
   const FRONT_VER = '0';
 
-  const LANG_CODE = {
-    'en_us': 1,
-    'zh_tw': 2
-  };
+  const FORK_LABEL = {
+    0: 'main',
+    1: 'owner',
+    2: 'easy',
+  }
 
   class ThreadLoader {
 
@@ -60,14 +61,6 @@ const {ThreadLoader} = (() => {
       } catch (result) {
         throw { result, message: `ThreadKeyの取得失敗 ${videoId}` }
       }
-    }
-
-    getLangCode(language = '') {
-      language = language.replace('-', '_').toLowerCase();
-      if (LANG_CODE[language]) {
-        return LANG_CODE[language];
-      }
-      return 0;
     }
 
     async getPostKey(threadId, options = {}) {
@@ -273,56 +266,53 @@ const {ThreadLoader} = (() => {
       }
     }
 
+    async getNicoruKey(threadId, options = {}) {
+      const url = `https://nvapi.nicovideo.jp/v1/comment/keys/nicoru?threadId=${threadId}`;
 
-    getNicoruKey(threadId, langCode = 0, options = {}) {
-      const url =
-        `https://nvapi.nicovideo.jp/v1/nicorukey?language=${langCode}&threadId=${threadId}`;
-
-      console.log('getNicorukey url: ', url);
-      const headers = options.cookie ? {Cookie: options.cookie} : {};
-      Object.assign(headers, {
+      console.log('getNicoruKey url: ', url);
+      const headers = Object.assign({
         'X-Frontend-Id': FRONT_ID,
-          // 'X-Frontend-Version': FRONT_VER
-        });
-      return netUtil.fetch(url, {
-        headers,
-        credentials: 'include'
-      }).then(res => res.json())
-        .then(js => {
-          if (js.meta.status === 200) {
-            return js.data;
-          }
-          return Promise.reject({status: js.meta.status});
-        }).catch(result => {
-        return Promise.reject({
-          result,
-          message: `NicoruKeyの取得失敗 ${threadId}`
-        });
-      });
+        'X-Frontend-Version': FRONT_VER,
+        'X-Niconico-Language': options.language || 'ja-jp'
+      }, options.cookie ? {Cookie: options.cookie} : {});
+      try {
+        const { meta, data } = await netUtil.fetch(url, {
+          headers,
+          credentials: 'include'
+        }).then(res => res.json());
+        if (meta.status !== 200) {
+          throw meta
+        }
+        return data
+      } catch (result) {
+        throw { result, message: `NicoruKeyの取得失敗 ${threadId}` }
+      }
     }
 
     async nicoru(msgInfo, chat) {
-      const threadInfo = msgInfo.threadInfo;
-      const language = this.getLangCode(msgInfo.language);
-      const {nicorukey} = await this.getNicoruKey(chat.threadId, language);
-      const server = threadInfo.server.replace('/api/', '/api.json/');
-      const body = JSON.stringify({nicoru:{
+      const {
+        videoId,
+        threadId,
+        language
+      } = msgInfo.threadInfo;
+      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/nicorus`;
+      const { nicoruKey } = await this.getNicoruKey(threadId, { language });
+      const packet = JSON.stringify({
         content: chat.text,
-        fork: chat.fork || 0,
-        id: chat.no.toString(),
-        language,
-        nicorukey,
-        postdate: `${chat.date}.${chat.dateUsec}`,
-        premium: nicoUtil.isPremium() ? 1 : 0,
-        thread: chat.threadId.toString(),
-        user_id: msgInfo.userId.toString()
-      }});
-      const result = await this._post(server, body);
-      const [{nicoru_result: {status}}] = result;
-      if (status === 4) {
-        return Promise.reject({status, message: 'ニコり済みだった'});
-      } else if (status !== 0) {
-        return Promise.reject({status, message: `ニコれなかった＞＜ (status:${status})`});
+        fork: FORK_LABEL[chat.fork || 0],
+        no: chat.no,
+        nicoruKey,
+        videoId,
+      });
+      console.log('post packet: ', packet);
+      try {
+        return await this._post(url, packet); // { nicoruId, nicoruCount }
+      } catch (error) {
+        const { status = 'fail', errorCode } = error;
+        throw {
+          status,
+          message: errorCode ? `ニコれなかった＞＜ ${errorCode}` : 'ニコれなかった＞＜'
+        };
       }
       return result;
     }
