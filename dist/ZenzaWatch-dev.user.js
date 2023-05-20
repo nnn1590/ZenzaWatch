@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.26
+// @version        2.6.3-fix-playlist.27
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.26';
+    var VER = '2.6.3-fix-playlist.27';
     const ENV = 'DEV';
 
 
@@ -16884,7 +16884,7 @@ class NicoComment extends Emitter {
 			return thread.comments.map(c => {
 				return Object.assign({
 					text: c.body,
-					date: new Date(c.postedAt).getTime(),
+					date: new Date(c.postedAt).getTime() / 1000,
 					cmd: c.commands.join(' '),
 					premium: c.isPremium,
 					user_id: c.userId,
