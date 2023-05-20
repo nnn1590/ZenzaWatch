@@ -1592,12 +1592,11 @@ class NicoVideoPlayerDialog extends Emitter {
         this.reload({videoServerType: param === 'dmc' ? 'dmc' : 'smile'});
         break;
       case 'update-commentLanguage':
-        command = command.replace(/^update-/, '');
-        if (this._playerConfig.props[command] === param) {
+        if (this._playerConfig.props.commentLanguage === param) {
           break;
         }
-        this._playerConfig.props[command] = param;
-        this.reloadComment(param);
+        this._playerConfig.props.commentLanguage = param;
+        this.reloadComment();
         break;
       case 'saveMymemory':
         util.saveMymemory(this, this._state.videoInfo);

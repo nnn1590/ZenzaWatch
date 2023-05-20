@@ -68,7 +68,7 @@ const Config = (() => {
     autoCommentSpeedRate: false,
 
     playlistLoop: false,
-    commentLanguage: 'ja_JP',
+    commentLanguage: 'ja-jp',
 
     baseFontFamily: '',
     baseChatScale: 1.0,

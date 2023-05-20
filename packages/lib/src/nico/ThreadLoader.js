@@ -128,6 +128,10 @@ const {ThreadLoader} = (() => {
         packet.threadKey = info.threadKey;
       }
 
+      if (msgInfo.language !== params.language) {
+        packet.params.language = msgInfo.language;
+      }
+
       if (msgInfo.when > 0) {
         packet.additionals.when = msgInfo.when;
       }
@@ -159,8 +163,7 @@ const {ThreadLoader} = (() => {
     }
 
     async load(msgInfo, options = {}) {
-      const videoId = msgInfo.videoId;
-      const userId   = msgInfo.userId;
+      const { videoId, userId } = msgInfo;
 
       const timeKey = `loadComment videoId: ${videoId}`;
       console.time(timeKey);
