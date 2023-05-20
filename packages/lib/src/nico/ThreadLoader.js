@@ -44,14 +44,17 @@ const {ThreadLoader} = (() => {
 
       console.log('getThreadKey url: ', url);
       const headers = Object.assign({
-        'X-Frontend-Id': 6,
-        'X-Frontend-Version': 0
+        'X-Frontend-Id': FRONT_ID,
+        'X-Frontend-Version': FRONT_VER,
       }, options.cookie ? {Cookie: options.cookie} : {});
       try {
-        const { data } = await netUtil.fetch(url, {
+        const { meta, data } = await netUtil.fetch(url, {
           headers,
           credentials: 'include'
         }).then(res => res.json());
+        if (meta.status !== 200) {
+          throw meta
+        }
         this._threadKeys[videoId] = data.threadKey;
         return data
       } catch (result) {
@@ -72,124 +75,59 @@ const {ThreadLoader} = (() => {
 
       console.log('getPostKey url: ', url);
       const headers = Object.assign({
-        'X-Frontend-Id': 6,
-        'X-Frontend-Version': 0
+        'X-Frontend-Id': FRONT_ID,
+        'X-Frontend-Version': FRONT_VER,
       }, options.cookie ? {Cookie: options.cookie} : {});
       try {
-        const { data } = await netUtil.fetch(url, {
+        const { meta, data } = await netUtil.fetch(url, {
           headers,
           credentials: 'include'
         }).then(res => res.json());
+        if (meta.status !== 200) {
+          throw meta
+        }
         return data
       } catch (result) {
         throw { result, message: `PostKeyの取得失敗 ${threadId}` }
       }
     }
 
-    buildPacketData(msgInfo, options = {}) {
-      const packets = [];
-      const resCount = this.getRequestCountByDuration(msgInfo.duration);
-      const leafContent = `0-${Math.floor(msgInfo.duration / 60) + 1}:100,${resCount},nicoru:100`;
-      const language = this.getLangCode(msgInfo.language);
-
-      msgInfo.threads.forEach(thread => {
-        if (!thread.isActive) { return; }
-
-        const t = {
-          thread: thread.id.toString(),
-          user_id: msgInfo.userId > 0 ? msgInfo.userId.toString() : '', // 0の時は空文字
-          language,
-          nicoru: 3,
-          scores: 1
-        };
-        if (thread.isThreadkeyRequired) {
-          t.threadkey = msgInfo.threadKey[thread.id].key;
-          t.force_184 = msgInfo.threadKey[thread.id].force184 ? '1' : '0';
-        }
-        if (msgInfo.when > 0) {
-          t.when = msgInfo.when;
-        }
-        if (thread.fork) {
-          t.fork = thread.fork;
-        }
-        if (options.resFrom > 0) {
-          t.res_from = options.resFrom;
-        }
-        // threadkeyかwaybackkeyがある場合にuserkeyをつけてしまうとエラー。いらないなら無視すりゃいいだろが
-        if (!t.threadkey /*&& !t.waybackkey*/ && msgInfo.userKey) {
-          t.userkey = msgInfo.userKey;
-        }
-        if (t.fork || thread.isLeafRequired === false) { // 投稿者コメントなど
-          packets.push({thread: Object.assign({with_global: 1, version: VERSION_OLD, res_from: -1000}, t)});
-        } else {
-          packets.push({thread: Object.assign({with_global: 1, version: VERSION}, t)});
-          packets.push({thread_leaves: Object.assign({content: leafContent}, t)});
-        }
-      });
-      return packets;
-    }
-
-    buildPacket(msgInfo, options = {}) {
-      const data = this.buildPacketData(msgInfo);
-      if (options.format !== 'xml') {
-        return JSON.stringify(data);
-      }
-      const packet = document.createElement('packet');
-      data.forEach(d => {
-        const t = document.createElement(d.thread ? 'thread' : 'thread_leaves');
-        const thread = d.thread ? d.thread : d.thread_leaves;
-        Object.keys(thread).forEach(attr => {
-          if (attr === 'content') {
-            t.textContent = thread[attr];
-            return;
-          }
-          t.setAttribute(attr, thread[attr]);
-        });
-        packet.append(t);
-      });
-      return packet.outerHTML;
-    }
-
-    _post(url, body, options = {}) {
+    async _post(url, body, options = {}) {
       const headers = {
-        'X-Frontend-Id': 6,
-        'X-Frontend-Version': 0,
+        'X-Frontend-Id': FRONT_ID,
+        'X-Frontend-Version': FRONT_VER,
         'Content-Type': 'text/plain; charset=UTF-8'
       };
-      return netUtil.fetch(url, {
-        method: 'POST',
-        dataType: 'text',
-        headers,
-        body
-      }).then(res => {
-        if (options.format !== 'xml') {
-          return res.json();
+      try {
+        const { meta, data } = await netUtil.fetch(url, {
+          method: 'POST',
+          dataType: 'text',
+          headers,
+          body
+        }).then(res => res.json());
+        if (meta.status !== 200) {
+          throw meta
         }
-        return res.text().then(text => {
-          if (DOMParser) {
-            return new DOMParser().parseFromString(text, 'application/xml');
-          }
-          return (new JSDOM(text)).window.document;
-        });
-      }).catch(result => {
-        return Promise.reject({
+        return data;
+      } catch (result) {
+        throw {
           result,
-          message: `コメントの通信失敗 server: ${server}`
-        });
-      });
+          message: `コメントの通信失敗`
+        }
+      }
     }
 
     async _load(msgInfo, options = {}) {
       const {
         params,
         threadKey
-      } = msgInfo.nvComment
+      } = msgInfo.nvComment;
 
       const packet = {
         additionals: {},
         params,
         threadKey
-      }
+      };
 
       if (options.retrying) {
         const info = await this.getThreadKey(msgInfo.videoId, options);
@@ -204,18 +142,21 @@ const {ThreadLoader} = (() => {
       const url = 'https://nvcomment.nicovideo.jp/v1/threads';
       console.log('load threads...', url, packet);
       const headers = {
-        'X-Frontend-Id': 6,
-        'X-Frontend-Version': 0,
+        'X-Frontend-Id': FRONT_ID,
+        'X-Frontend-Version': FRONT_VER,
         'Content-Type': 'text/plain; charset=UTF-8'
       };
       try {
-        const result = await netUtil.fetch(url, {
+        const { meta, data } = await netUtil.fetch(url, {
           method: 'POST',
           dataType: 'text',
           headers,
           body: JSON.stringify(packet)
         }).then(res => res.json());
-        return result.data;
+        if (meta.status !== 200) {
+          throw meta;
+        }
+        return data;
       } catch (result) {
         throw {
           result,
@@ -285,50 +226,51 @@ const {ThreadLoader} = (() => {
       return {threadInfo, body: result, format: 'threads'};
     }
 
-    async _postChat(threadInfo, postKey, text, cmd, vpos) {
-      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadInfo.threadId}/comments`
+    async postChat(msgInfo, text, cmd, vpos, retrying = false) {
+      const {
+        videoId,
+        threadId,
+        language
+      } = msgInfo.threadInfo;
+      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/comments`
+      const { postKey } = await this.getPostKey(threadId, { language });
+
       const packet = JSON.stringify({
         body: text,
         commands: cmd?.split(/[\x20\xA0\u3000\t\u2003\s]+/) ?? [],
         vposMs: Math.floor((vpos || 0) * 10),
         postKey,
-        videoId: threadInfo.videoId,
+        videoId,
       });
       console.log('post packet: ', packet);
-      const result = await this._post(url, packet, 'json');
-
-      if (result.data) {
-        const { no, id } = result.data;
+      try {
+        const { no, id } = await this._post(url, packet);
         return {
           status: 'ok',
           no,
           id,
           message: 'コメント投稿成功'
         };
+      } catch (error) {
+        const { status, errorCode } = error;
+        if (status == null) {
+          throw {
+            status: 'fail',
+            message: `コメント投稿失敗`
+          };
+        }
+        if (!retrying && ['INVALID_TOKEN', 'EXPIRED_TOKEN'].includes(errorCode)) {
+          await this.load(msgInfo);
+        } else {
+          throw {
+            status: 'fail',
+            statusCode: status,
+            message: `コメント投稿失敗 ${errorCode}`
+          };
+        }
+        await sleep(3000);
+        return await this.postChat(msgInfo, text, cmd, vpos, true)
       }
-      throw {
-        status: 'fail',
-        message: `コメント投稿失敗`
-      };
-    }
-
-    async postChat(msgInfo, text, cmd, vpos, lang) {
-      const threadInfo = msgInfo.threadInfo;
-      const tk = await this.getPostKey(threadInfo.threadId, { language: lang });
-      const postkey = tk.postKey;
-      let result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
-      if (result.status === 'ok') {
-        return result;
-      }
-      const errorCode = parseInt(result.code, 10);
-      if (errorCode === 3) { // ticket fail
-        await this.load(msgInfo);
-      } else if (![2, 4, 5].includes(errorCode)) { // リカバー不能系
-        return Promise.reject(result);
-      }
-      await sleep(3000);
-      result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
-      return result.status === 'ok' ? result : Promise.reject(result);
     }
 
 
