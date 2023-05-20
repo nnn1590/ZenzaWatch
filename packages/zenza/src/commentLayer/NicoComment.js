@@ -72,7 +72,7 @@ class NicoComment extends Emitter {
       return thread.comments.map(c => {
         return Object.assign({
           text: c.body,
-          date: new Date(c.postedAt).getTime(),
+          date: new Date(c.postedAt).getTime() / 1000,
           cmd: c.commands.join(' '),
           premium: c.isPremium,
           user_id: c.userId,
