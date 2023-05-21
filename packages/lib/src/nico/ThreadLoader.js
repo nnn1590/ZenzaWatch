@@ -1,19 +1,12 @@
-import {util} from '../util';
 import {PopupMessage} from '../util';
-// import jsdom from 'jsdom';
 import {sleep} from '../../packages/lib/src/infra/sleep';
 import {netUtil} from '../../../lib/src/infra/netUtil';
-import {textUtil} from '../../../lib/src/text/textUtil';
-import {nicoUtil} from '../../../lib/src/nico/nicoUtil';
 
-const JSDOM = {} ; //jsdom.JSDOM;
 const debug = {};
 
 //===BEGIN===
 
 const {ThreadLoader} = (() => {
-  const VERSION_OLD = '20061206';
-  const VERSION     = '20090904';
   const FRONT_ID = '6';
   const FRONT_VER = '0';
 
@@ -27,17 +20,6 @@ const {ThreadLoader} = (() => {
 
     constructor() {
       this._threadKeys = {};
-    }
-
-    /**
-     * 動画の長さに応じて取得するコメント数を変える
-     * 本家よりちょっと盛ってる
-     */
-    getRequestCountByDuration(duration) {
-      if (duration < 60)  { return 100; }
-      if (duration < 240) { return 200; }
-      if (duration < 300) { return 400; }
-      return 1000;
     }
 
     async getThreadKey(videoId, options = {}) {
