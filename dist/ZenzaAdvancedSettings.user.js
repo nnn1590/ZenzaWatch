@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description1 ZenzaWatchの上級者向け設定。変更する時だけ有効にすればOK
 // @include     *//www.nicovideo.jp/my*
-// @version     0.3.3-another.3
+// @version     0.3.3-another.4
 // @author      segabito macmoto
 // @license     public domain
 // @grant       none
@@ -943,7 +943,7 @@ const Config = (() => {
 		commentSpeedRate: 1.0,
 		autoCommentSpeedRate: false,
 		playlistLoop: false,
-		commentLanguage: 'ja_JP',
+		commentLanguage: 'ja-jp',
 		baseFontFamily: '',
 		baseChatScale: 1.0,
 		baseFontBolder: true,

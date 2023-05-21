@@ -26,7 +26,7 @@
 // @exclude     *://dic.nicovideo.jp/p/*
 // @exclude     *://ext.nicovideo.jp/thumb/*
 // @exclude     *://ext.nicovideo.jp/thumb_channel/*
-// @version     0.5.15-fix-mylist-api.6
+// @version     0.5.15-fix-mylist-api.7
 // @grant       none
 // @author      segabito macmoto
 // @license     public domain
@@ -3643,7 +3643,7 @@ class CrossDomainGate extends Emitter {
           const lang = util.getPageLanguage();
           const prefix = owner.type === 'user' ? '投稿者: ' : '提供: ';
           const suffix =
-            (owner.type === 'user' && lang === 'ja-JP') ? ' さん' : '';
+            (owner.type === 'user' && lang.startsWith('ja')) ? ' さん' : '';
           owner.linkId =
             owner.id ?
               (owner.type === 'user' ? `user/${owner.id}` : `ch${owner.id}`) :

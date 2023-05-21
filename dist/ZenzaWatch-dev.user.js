@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.27
+// @version        2.6.3-fix-playlist.28
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.27';
+    var VER = '2.6.3-fix-playlist.28';
     const ENV = 'DEV';
 
 
@@ -814,7 +814,7 @@ const Config = (() => {
 		commentSpeedRate: 1.0,
 		autoCommentSpeedRate: false,
 		playlistLoop: false,
-		commentLanguage: 'ja_JP',
+		commentLanguage: 'ja-jp',
 		baseFontFamily: '',
 		baseChatScale: 1.0,
 		baseFontBolder: true,
@@ -6303,6 +6303,12 @@ const VideoInfoLoader = (function () {
 		const {
 			frontendId,
 			frontendVersion,
+			i18n: {
+				footer: {
+					availableLanguageList,
+				},
+				language: i18nLanguage,
+			},
 			playlistToken, //項目は残ってるけど値は出なくなってる
 		} = JSON.parse(watchDataContainer.getAttribute('data-environment'));
 		const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
@@ -6424,6 +6430,9 @@ const VideoInfoLoader = (function () {
 			userKey,
 			hasOwnerThread: threads.find(t => t.isOwnerThread),
 			when: null,
+			language: i18nLanguage,
+			i18nLanguage,
+			availableLanguageList,
 			frontendId,
 			frontendVersion
 		};
@@ -8809,10 +8818,11 @@ const {ThreadLoader} = (() => {
 	const VERSION     = '20090904';
 	const FRONT_ID = '6';
 	const FRONT_VER = '0';
-	const LANG_CODE = {
-		'en_us': 1,
-		'zh_tw': 2
-	};
+	const FORK_LABEL = {
+		0: 'main',
+		1: 'owner',
+		2: 'easy',
+	}
 	class ThreadLoader {
 		constructor() {
 			this._threadKeys = {};
@@ -8826,165 +8836,101 @@ const {ThreadLoader} = (() => {
 		async getThreadKey(videoId, options = {}) {
 			let url = `https://nvapi.nicovideo.jp/v1/comment/keys/thread?videoId=${videoId}`;
 			console.log('getThreadKey url: ', url);
-			const headers = Object.assign({
-				'X-Frontend-Id': 6,
-				'X-Frontend-Version': 0
-			}, options.cookie ? {Cookie: options.cookie} : {});
 			try {
-				const { data } = await netUtil.fetch(url, {
-					headers,
+				const { meta, data } = await netUtil.fetch(url, {
+					headers: {
+						'X-Frontend-Id': FRONT_ID,
+						'X-Frontend-Version': FRONT_VER,
+					},
 					credentials: 'include'
 				}).then(res => res.json());
+				if (meta.status !== 200) {
+					throw meta
+				}
 				this._threadKeys[videoId] = data.threadKey;
 				return data
 			} catch (result) {
 				throw { result, message: `ThreadKeyの取得失敗 ${videoId}` }
 			}
 		}
-		getLangCode(language = '') {
-			language = language.replace('-', '_').toLowerCase();
-			if (LANG_CODE[language]) {
-				return LANG_CODE[language];
-			}
-			return 0;
-		}
 		async getPostKey(threadId, options = {}) {
 			const url = `https://nvapi.nicovideo.jp/v1/comment/keys/post?threadId=${threadId}`;
 			console.log('getPostKey url: ', url);
-			const headers = Object.assign({
-				'X-Frontend-Id': 6,
-				'X-Frontend-Version': 0
-			}, options.cookie ? {Cookie: options.cookie} : {});
 			try {
-				const { data } = await netUtil.fetch(url, {
-					headers,
+				const { meta, data } = await netUtil.fetch(url, {
+					headers: {
+						'X-Frontend-Id': FRONT_ID,
+						'X-Frontend-Version': FRONT_VER,
+					},
 					credentials: 'include'
 				}).then(res => res.json());
+				if (meta.status !== 200) {
+					throw meta
+				}
 				return data
 			} catch (result) {
 				throw { result, message: `PostKeyの取得失敗 ${threadId}` }
 			}
 		}
-		buildPacketData(msgInfo, options = {}) {
-			const packets = [];
-			const resCount = this.getRequestCountByDuration(msgInfo.duration);
-			const leafContent = `0-${Math.floor(msgInfo.duration / 60) + 1}:100,${resCount},nicoru:100`;
-			const language = this.getLangCode(msgInfo.language);
-			msgInfo.threads.forEach(thread => {
-				if (!thread.isActive) { return; }
-				const t = {
-					thread: thread.id.toString(),
-					user_id: msgInfo.userId > 0 ? msgInfo.userId.toString() : '', // 0の時は空文字
-					language,
-					nicoru: 3,
-					scores: 1
-				};
-				if (thread.isThreadkeyRequired) {
-					t.threadkey = msgInfo.threadKey[thread.id].key;
-					t.force_184 = msgInfo.threadKey[thread.id].force184 ? '1' : '0';
+		async _post(url, body, options = {}) {
+			try {
+				const { meta, data } = await netUtil.fetch(url, {
+					method: 'POST',
+					headers: {
+						'X-Frontend-Id': FRONT_ID,
+						'X-Frontend-Version': FRONT_VER,
+						'Content-Type': 'text/plain; charset=UTF-8'
+					},
+					body
+				}).then(res => res.json());
+				if (meta.status !== 200) {
+					throw meta
 				}
-				if (msgInfo.when > 0) {
-					t.when = msgInfo.when;
-				}
-				if (thread.fork) {
-					t.fork = thread.fork;
-				}
-				if (options.resFrom > 0) {
-					t.res_from = options.resFrom;
-				}
-				if (!t.threadkey /*&& !t.waybackkey*/ && msgInfo.userKey) {
-					t.userkey = msgInfo.userKey;
-				}
-				if (t.fork || thread.isLeafRequired === false) { // 投稿者コメントなど
-					packets.push({thread: Object.assign({with_global: 1, version: VERSION_OLD, res_from: -1000}, t)});
-				} else {
-					packets.push({thread: Object.assign({with_global: 1, version: VERSION}, t)});
-					packets.push({thread_leaves: Object.assign({content: leafContent}, t)});
-				}
-			});
-			return packets;
-		}
-		buildPacket(msgInfo, options = {}) {
-			const data = this.buildPacketData(msgInfo);
-			if (options.format !== 'xml') {
-				return JSON.stringify(data);
-			}
-			const packet = document.createElement('packet');
-			data.forEach(d => {
-				const t = document.createElement(d.thread ? 'thread' : 'thread_leaves');
-				const thread = d.thread ? d.thread : d.thread_leaves;
-				Object.keys(thread).forEach(attr => {
-					if (attr === 'content') {
-						t.textContent = thread[attr];
-						return;
-					}
-					t.setAttribute(attr, thread[attr]);
-				});
-				packet.append(t);
-			});
-			return packet.outerHTML;
-		}
-		_post(url, body, options = {}) {
-			const headers = {
-				'X-Frontend-Id': 6,
-				'X-Frontend-Version': 0,
-				'Content-Type': 'text/plain; charset=UTF-8'
-			};
-			return netUtil.fetch(url, {
-				method: 'POST',
-				dataType: 'text',
-				headers,
-				body
-			}).then(res => {
-				if (options.format !== 'xml') {
-					return res.json();
-				}
-				return res.text().then(text => {
-					if (DOMParser) {
-						return new DOMParser().parseFromString(text, 'application/xml');
-					}
-					return (new JSDOM(text)).window.document;
-				});
-			}).catch(result => {
-				return Promise.reject({
+				return data;
+			} catch (result) {
+				throw {
 					result,
-					message: `コメントの通信失敗 server: ${server}`
-				});
-			});
+					message: `コメントの通信失敗`
+				}
+			}
 		}
 		async _load(msgInfo, options = {}) {
 			const {
 				params,
 				threadKey
-			} = msgInfo.nvComment
+			} = msgInfo.nvComment;
 			const packet = {
 				additionals: {},
 				params,
 				threadKey
-			}
+			};
 			if (options.retrying) {
 				const info = await this.getThreadKey(msgInfo.videoId, options);
 				console.log('threadKey: ', msgInfo.videoId, info);
 				packet.threadKey = info.threadKey;
+			}
+			if (msgInfo.language !== params.language) {
+				packet.params.language = msgInfo.language;
 			}
 			if (msgInfo.when > 0) {
 				packet.additionals.when = msgInfo.when;
 			}
 			const url = 'https://nvcomment.nicovideo.jp/v1/threads';
 			console.log('load threads...', url, packet);
-			const headers = {
-				'X-Frontend-Id': 6,
-				'X-Frontend-Version': 0,
-				'Content-Type': 'text/plain; charset=UTF-8'
-			};
 			try {
-				const result = await netUtil.fetch(url, {
+				const { meta, data } = await netUtil.fetch(url, {
 					method: 'POST',
-					dataType: 'text',
-					headers,
+					headers: {
+						'X-Frontend-Id': FRONT_ID,
+						'X-Frontend-Version': FRONT_VER,
+						'Content-Type': 'text/plain; charset=UTF-8'
+					},
 					body: JSON.stringify(packet)
 				}).then(res => res.json());
-				return result.data;
+				if (meta.status !== 200) {
+					throw meta;
+				}
+				return data;
 			} catch (result) {
 				throw {
 					result,
@@ -8993,8 +8939,7 @@ const {ThreadLoader} = (() => {
 			}
 		}
 		async load(msgInfo, options = {}) {
-			const videoId = msgInfo.videoId;
-			const userId   = msgInfo.userId;
+			const { videoId, userId } = msgInfo;
 			const timeKey = `loadComment videoId: ${videoId}`;
 			console.time(timeKey);
 			let result;
@@ -9042,95 +8987,95 @@ const {ThreadLoader} = (() => {
 			console.log('threadInfo: ', threadInfo);
 			return {threadInfo, body: result, format: 'threads'};
 		}
-		async _postChat(threadInfo, postKey, text, cmd, vpos) {
-			const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadInfo.threadId}/comments`
+		async postChat(msgInfo, text, cmd, vpos, retrying = false) {
+			const {
+				videoId,
+				threadId,
+				language
+			} = msgInfo.threadInfo;
+			const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/comments`
+			const { postKey } = await this.getPostKey(threadId, { language });
 			const packet = JSON.stringify({
 				body: text,
 				commands: cmd?.split(/[\x20\xA0\u3000\t\u2003\s]+/) ?? [],
 				vposMs: Math.floor((vpos || 0) * 10),
 				postKey,
-				videoId: threadInfo.videoId,
+				videoId,
 			});
 			console.log('post packet: ', packet);
-			const result = await this._post(url, packet, 'json');
-			if (result.data) {
-				const { no, id } = result.data;
+			try {
+				const { no, id } = await this._post(url, packet);
 				return {
 					status: 'ok',
 					no,
 					id,
 					message: 'コメント投稿成功'
 				};
+			} catch (error) {
+				const { status, errorCode } = error;
+				if (status == null) {
+					throw {
+						status: 'fail',
+						message: `コメント投稿失敗`
+					};
+				}
+				if (!retrying && ['INVALID_TOKEN', 'EXPIRED_TOKEN'].includes(errorCode)) {
+					await this.load(msgInfo);
+				} else {
+					throw {
+						status: 'fail',
+						statusCode: status,
+						message: `コメント投稿失敗 ${errorCode}`
+					};
+				}
+				await sleep(3000);
+				return await this.postChat(msgInfo, text, cmd, vpos, true)
 			}
-			throw {
-				status: 'fail',
-				message: `コメント投稿失敗`
-			};
 		}
-		async postChat(msgInfo, text, cmd, vpos, lang) {
-			const threadInfo = msgInfo.threadInfo;
-			const tk = await this.getPostKey(threadInfo.threadId, { language: lang });
-			const postkey = tk.postKey;
-			let result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
-			if (result.status === 'ok') {
-				return result;
+		async getNicoruKey(threadId, options = {}) {
+			const url = `https://nvapi.nicovideo.jp/v1/comment/keys/nicoru?threadId=${threadId}`;
+			console.log('getNicoruKey url: ', url);
+			try {
+				const { meta, data } = await netUtil.fetch(url, {
+					headers: {
+						'X-Frontend-Id': FRONT_ID,
+						'X-Frontend-Version': FRONT_VER,
+						'X-Niconico-Language': options.language || 'ja-jp'
+					},
+					credentials: 'include'
+				}).then(res => res.json());
+				if (meta.status !== 200) {
+					throw meta
+				}
+				return data
+			} catch (result) {
+				throw { result, message: `NicoruKeyの取得失敗 ${threadId}` }
 			}
-			const errorCode = parseInt(result.code, 10);
-			if (errorCode === 3) { // ticket fail
-				await this.load(msgInfo);
-			} else if (![2, 4, 5].includes(errorCode)) { // リカバー不能系
-				return Promise.reject(result);
-			}
-			await sleep(3000);
-			result = await this._postChat(threadInfo, postkey, text, cmd, vpos, lang).catch(r => r);
-			return result.status === 'ok' ? result : Promise.reject(result);
-		}
-		getNicoruKey(threadId, langCode = 0, options = {}) {
-			const url =
-				`https://nvapi.nicovideo.jp/v1/nicorukey?language=${langCode}&threadId=${threadId}`;
-			console.log('getNicorukey url: ', url);
-			const headers = options.cookie ? {Cookie: options.cookie} : {};
-			Object.assign(headers, {
-				'X-Frontend-Id': FRONT_ID,
-				});
-			return netUtil.fetch(url, {
-				headers,
-				credentials: 'include'
-			}).then(res => res.json())
-				.then(js => {
-					if (js.meta.status === 200) {
-						return js.data;
-					}
-					return Promise.reject({status: js.meta.status});
-				}).catch(result => {
-				return Promise.reject({
-					result,
-					message: `NicoruKeyの取得失敗 ${threadId}`
-				});
-			});
 		}
 		async nicoru(msgInfo, chat) {
-			const threadInfo = msgInfo.threadInfo;
-			const language = this.getLangCode(msgInfo.language);
-			const {nicorukey} = await this.getNicoruKey(chat.threadId, language);
-			const server = threadInfo.server.replace('/api/', '/api.json/');
-			const body = JSON.stringify({nicoru:{
+			const {
+				videoId,
+				threadId,
+				language
+			} = msgInfo.threadInfo;
+			const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/nicorus`;
+			const { nicoruKey } = await this.getNicoruKey(threadId, { language });
+			const packet = JSON.stringify({
 				content: chat.text,
-				fork: chat.fork || 0,
-				id: chat.no.toString(),
-				language,
-				nicorukey,
-				postdate: `${chat.date}.${chat.dateUsec}`,
-				premium: nicoUtil.isPremium() ? 1 : 0,
-				thread: chat.threadId.toString(),
-				user_id: msgInfo.userId.toString()
-			}});
-			const result = await this._post(server, body);
-			const [{nicoru_result: {status}}] = result;
-			if (status === 4) {
-				return Promise.reject({status, message: 'ニコり済みだった'});
-			} else if (status !== 0) {
-				return Promise.reject({status, message: `ニコれなかった＞＜ (status:${status})`});
+				fork: FORK_LABEL[chat.fork || 0],
+				no: chat.no,
+				nicoruKey,
+				videoId,
+			});
+			console.log('post packet: ', packet);
+			try {
+				return await this._post(url, packet); // { nicoruId, nicoruCount }
+			} catch (error) {
+				const { status = 'fail', errorCode } = error;
+				throw {
+					status,
+					message: errorCode ? `ニコれなかった＞＜ ${errorCode}` : 'ニコれなかった＞＜'
+				};
 			}
 			return result;
 		}
@@ -20443,6 +20388,11 @@ class CommentListItem {
 }
 CommentListItem._itemId = 0;
 class CommentPanelView extends Emitter {
+	languages = [
+		['ja-jp', "日本語"],
+		['en-us', "English (US)"],
+		['zh-tw', "中文 (繁體)"]
+	];
 	constructor(params) {
 		super();
 		this.$container = params.$container;
@@ -20451,6 +20401,17 @@ class CommentPanelView extends Emitter {
 		css.addStyle(CommentPanelView.__css__);
 		const $view = this.$view = uq.html(CommentPanelView.__tpl__);
 		this.$container.append($view);
+		const langs = document.querySelector('.commentLanguageSelector');
+		for (const [language, label] of this.languages) {
+			const list = document.createElement('li');
+			list.className = 'commentPanel-command';
+			Object.assign(list.dataset, {
+				command: 'update-commentLanguage',
+				param: language,
+			});
+			list.textContent = label;
+			langs.append(list);
+		}
 		const $menu = this._$menu = this.$view.find('.commentPanel-menu');
 		global.debug.commentPanelView = this;
 		const listView = this._listView = new CommentListView({
@@ -20477,7 +20438,7 @@ class CommentPanelView extends Emitter {
 		global.emitter.on('hideHover', () => $menu.removeClass('show'));
 	}
 	toggleClass(className, v) {
-		this.$view.raf.toggleClass(className, v);
+		return this.$view.raf.toggleClass(className, v);
 	}
 	_onModelCurrentTimeUpdate(sec, viewIndex) {
 		if (!this.$view){
@@ -20530,10 +20491,11 @@ class CommentPanelView extends Emitter {
 	}
 	_onCommentPanelStatusUpdate() {
 		const commentPanel = this.commentPanel;
-		const $view = this.$view.raf.toggleClass('autoScroll', commentPanel.isAutoScroll);
+		const $view = this.toggleClass('autoScroll', commentPanel.isAutoScroll);
 		const langClass = `lang-${commentPanel.getLanguage()}`;
 		if (!$view.hasClass(langClass)) {
-			$view.raf.removeClass('lang-ja_JP lang-en_US lang-zh_TW').addClass(langClass);
+			$view.raf.removeClass(this.languages.map(([x]) => `lang-${x}`).join(' '));
+			$view.raf.addClass(langClass);
 		}
 	}
 }
@@ -20613,9 +20575,9 @@ CommentPanelView.__css__ = `
 		.commentPanel-menu li {
 			line-height: 20px;
 		}
-		.commentPanel-container.lang-ja_JP .commentPanel-command[data-param=ja_JP],
-		.commentPanel-container.lang-en_US .commentPanel-command[data-param=en_US],
-		.commentPanel-container.lang-zh_TW .commentPanel-command[data-param=zh_TW] {
+		.commentPanel-container.lang-ja-jp .commentPanel-command[data-param=ja-jp],
+		.commentPanel-container.lang-en-us .commentPanel-command[data-param=en-us],
+		.commentPanel-container.lang-zh-tw .commentPanel-command[data-param=zh-tw] {
 			font-weight: bolder;
 			color: #ff9;
 		}
@@ -20639,21 +20601,14 @@ CommentPanelView.__tpl__ = (`
 							<li class="commentPanel-command" data-command="sortBy" data-param="nicoru:desc">
 								ニコる数で並べる
 							</li>
-							<hr class="separator">
-							<li class="commentPanel-command" data-command="update-commentLanguage" data-param="ja_JP">
-								日本語
-							</li>
-							<li class="commentPanel-command" data-command="update-commentLanguage" data-param="en_US">
-								English
-							</li>
-							<li class="commentPanel-command" data-command="update-commentLanguage" data-param="zh_TW">
-								中文
-							</li>
+						</ul>
+						<hr class="separator">
+						<ul class="commentLanguageSelector">
 						</ul>
 						</div>
 					</div>
 				</div>
-			<div class="timeMachineContainer"></div>
+				<div class="timeMachineContainer"></div>
 			</div>
 			<div class="commentPanel-frame"></div>
 		</div>
@@ -20666,7 +20621,7 @@ class CommentPanel extends Emitter {
 		const player = this._player = params.player;
 		this._autoScroll = _.isBoolean(params.autoScroll) ? params.autoScroll : true;
 		this._model = new CommentListModel({});
-		this._language = params.language || 'ja_JP';
+		this._language = params.language || 'ja-jp';
 		player.on('commentParsed', _.debounce(this._onCommentParsed.bind(this), 500));
 		player.on('commentChange', _.debounce(this._onCommentChange.bind(this), 500));
 		player.on('commentReady', _.debounce(this._onCommentReady.bind(this), 500));
@@ -20786,7 +20741,7 @@ class CommentPanel extends Emitter {
 		return this._autoScroll;
 	}
 	getLanguage() {
-		return this._language || 'ja_JP';
+		return this._language || 'ja-jp';
 	}
 	getThreadInfo() {
 		return this._threadInfo;
@@ -24856,12 +24811,11 @@ class NicoVideoPlayerDialog extends Emitter {
 				this.reload({videoServerType: param === 'dmc' ? 'dmc' : 'smile'});
 				break;
 			case 'update-commentLanguage':
-				command = command.replace(/^update-/, '');
-				if (this._playerConfig.props[command] === param) {
+				if (this._playerConfig.props.commentLanguage === param || this._videoInfo.msgInfo.i18nLanguage === 'ja-jp') {
 					break;
 				}
-				this._playerConfig.props[command] = param;
-				this.reloadComment(param);
+				this._playerConfig.props.commentLanguage = param;
+				this.reloadComment();
 				break;
 			case 'saveMymemory':
 				util.saveMymemory(this, this._state.videoInfo);
@@ -25372,7 +25326,8 @@ class NicoVideoPlayerDialog extends Emitter {
 		});
 	}
 	loadComment(msgInfo) {
-		msgInfo.language = this._playerConfig.props.commentLanguage;
+		msgInfo.language = msgInfo.i18nLanguage === 'ja-jp' ? 'ja-jp' : this._playerConfig.props.commentLanguage;
+		this._playerConfig.props.commentLanguage = msgInfo.language;
 		this.threadLoader.load(msgInfo).then(
 			this._onCommentLoadSuccess.bind(this, this._requestId),
 			this._onCommentLoadFail.bind(this, this._requestId)
@@ -30871,6 +30826,9 @@ const replaceRedirectLinks = async () => {
 		const isWatch = util.isGinzaWatchUrl() &&
 			(!!document.getElementById('watchAPIDataContainer') ||
 				!!document.getElementById('js-initial-watch-data'));
+		if (typeof Config.props.commentLanguage === 'string') {
+			Config.props.commentLanguage = Config.props.commentLanguage.replace('_', '-').toLowerCase();
+		}
 		const hoverMenu = global.debug.hoverMenu = new HoverMenu({playerConfig: Config});
 		await Promise.all([
 			NicoComment.offscreenLayer.get(Config),
