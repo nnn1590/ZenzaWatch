@@ -52,7 +52,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         this._threadKeys[videoId] = data.threadKey;
@@ -74,7 +74,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data
@@ -94,7 +94,7 @@ const {ThreadLoader} = (() => {
           },
           body
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data;
@@ -144,7 +144,7 @@ const {ThreadLoader} = (() => {
           },
           body: JSON.stringify(packet)
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta;
         }
         return data;
@@ -173,7 +173,7 @@ const {ThreadLoader} = (() => {
         await sleep(3000);
         try {
           console.time(timeKey);
-          const result = await this._load(msgInfo, { retrying: true, ...options });
+          result = await this._load(msgInfo, { retrying: true, ...options });
         } catch (e) {
           console.timeEnd(timeKey);
           window.console.error('loadComment fail finally: ', e);
@@ -242,7 +242,7 @@ const {ThreadLoader} = (() => {
           message: 'コメント投稿成功'
         };
       } catch (error) {
-        const { status, errorCode } = error;
+        const { result: { status, errorCode } } = error;
         if (status == null) {
           throw {
             status: 'fail',
@@ -276,7 +276,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data
@@ -304,7 +304,7 @@ const {ThreadLoader} = (() => {
       try {
         return await this._post(url, packet); // { nicoruId, nicoruCount }
       } catch (error) {
-        const { status = 'fail', errorCode } = error;
+        const { result: { status = 'fail', errorCode } } = error;
         throw {
           status,
           message: errorCode ? `ニコれなかった＞＜ ${errorCode}` : 'ニコれなかった＞＜'
