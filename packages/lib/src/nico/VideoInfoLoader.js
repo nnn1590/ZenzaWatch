@@ -21,7 +21,16 @@ const VideoInfoLoader = (function () {
       // baseURL,
       frontendId,
       frontendVersion,
-      // i18n,
+      i18n: {
+        // area,
+        footer: {
+          availableLanguageList,
+          // setcountryToken,
+          // setcountryURL,
+        },
+        language: i18nLanguage,
+        // locale,
+      },
       // isMonitoringLogUser,
       // newPlaylistRate,
       // newRelatedVideos,
@@ -194,6 +203,9 @@ const VideoInfoLoader = (function () {
       userKey,
       hasOwnerThread: threads.find(t => t.isOwnerThread),
       when: null,
+      language: i18nLanguage,
+      i18nLanguage,
+      availableLanguageList,
       frontendId,
       frontendVersion
     };

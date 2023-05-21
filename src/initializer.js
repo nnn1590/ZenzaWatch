@@ -80,6 +80,11 @@ const {initialize} = (() => {
       (!!document.getElementById('watchAPIDataContainer') ||
         !!document.getElementById('js-initial-watch-data'));
 
+    // migrate comment language
+    if (typeof Config.props.commentLanguage === 'string') {
+      Config.props.commentLanguage = Config.props.commentLanguage.replace('_', '-').toLowerCase();
+    }
+
     const hoverMenu = global.debug.hoverMenu = new HoverMenu({playerConfig: Config});
 
     await Promise.all([
