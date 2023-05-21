@@ -1,19 +1,12 @@
-import {util} from '../util';
 import {PopupMessage} from '../util';
-// import jsdom from 'jsdom';
 import {sleep} from '../../packages/lib/src/infra/sleep';
 import {netUtil} from '../../../lib/src/infra/netUtil';
-import {textUtil} from '../../../lib/src/text/textUtil';
-import {nicoUtil} from '../../../lib/src/nico/nicoUtil';
 
-const JSDOM = {} ; //jsdom.JSDOM;
 const debug = {};
 
 //===BEGIN===
 
 const {ThreadLoader} = (() => {
-  const VERSION_OLD = '20061206';
-  const VERSION     = '20090904';
   const FRONT_ID = '6';
   const FRONT_VER = '0';
 
@@ -29,17 +22,6 @@ const {ThreadLoader} = (() => {
       this._threadKeys = {};
     }
 
-    /**
-     * 動画の長さに応じて取得するコメント数を変える
-     * 本家よりちょっと盛ってる
-     */
-    getRequestCountByDuration(duration) {
-      if (duration < 60)  { return 100; }
-      if (duration < 240) { return 200; }
-      if (duration < 300) { return 400; }
-      return 1000;
-    }
-
     async getThreadKey(videoId, options = {}) {
       let url = `https://nvapi.nicovideo.jp/v1/comment/keys/thread?videoId=${videoId}`;
 
@@ -52,7 +34,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         this._threadKeys[videoId] = data.threadKey;
@@ -74,7 +56,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data
@@ -94,7 +76,7 @@ const {ThreadLoader} = (() => {
           },
           body
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data;
@@ -144,7 +126,7 @@ const {ThreadLoader} = (() => {
           },
           body: JSON.stringify(packet)
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta;
         }
         return data;
@@ -173,7 +155,7 @@ const {ThreadLoader} = (() => {
         await sleep(3000);
         try {
           console.time(timeKey);
-          const result = await this._load(msgInfo, { retrying: true, ...options });
+          result = await this._load(msgInfo, { retrying: true, ...options });
         } catch (e) {
           console.timeEnd(timeKey);
           window.console.error('loadComment fail finally: ', e);
@@ -242,7 +224,7 @@ const {ThreadLoader} = (() => {
           message: 'コメント投稿成功'
         };
       } catch (error) {
-        const { status, errorCode } = error;
+        const { result: { status, errorCode } } = error;
         if (status == null) {
           throw {
             status: 'fail',
@@ -276,7 +258,7 @@ const {ThreadLoader} = (() => {
           },
           credentials: 'include'
         }).then(res => res.json());
-        if (meta.status !== 200) {
+        if (meta.status >= 300) {
           throw meta
         }
         return data
@@ -304,7 +286,7 @@ const {ThreadLoader} = (() => {
       try {
         return await this._post(url, packet); // { nicoruId, nicoruCount }
       } catch (error) {
-        const { status = 'fail', errorCode } = error;
+        const { result: { status = 'fail', errorCode } } = error;
         throw {
           status,
           message: errorCode ? `ニコれなかった＞＜ ${errorCode}` : 'ニコれなかった＞＜'
