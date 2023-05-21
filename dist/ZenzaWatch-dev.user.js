@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.28
+// @version        2.6.3-fix-playlist.29
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.28';
+    var VER = '2.6.3-fix-playlist.29';
     const ENV = 'DEV';
 
 
@@ -6304,13 +6304,12 @@ const VideoInfoLoader = (function () {
 			frontendId,
 			frontendVersion,
 			i18n: {
-				footer: {
-					availableLanguageList,
-				},
+				footer: i18nFooter,
 				language: i18nLanguage,
 			},
 			playlistToken, //項目は残ってるけど値は出なくなってる
 		} = JSON.parse(watchDataContainer.getAttribute('data-environment'));
+		const availableLanguageList = i18nFooter?.availableLanguageList ?? [];
 		const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
 		const {
 			channel, // nullable
