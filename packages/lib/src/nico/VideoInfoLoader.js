@@ -23,11 +23,7 @@ const VideoInfoLoader = (function () {
       frontendVersion,
       i18n: {
         // area,
-        footer: {
-          availableLanguageList,
-          // setcountryToken,
-          // setcountryURL,
-        },
+        footer: i18nFooter,
         language: i18nLanguage,
         // locale,
       },
@@ -37,6 +33,10 @@ const VideoInfoLoader = (function () {
       playlistToken, //項目は残ってるけど値は出なくなってる
       // urls,
     } = JSON.parse(watchDataContainer.getAttribute('data-environment'));
+    // i18n.footer.availableLanguageList がないことがある？ GH-31
+    // setcountryToken,
+    // setcountryURL,
+    const availableLanguageList = i18nFooter?.availableLanguageList ?? [];
 
     const _data = JSON.parse(watchDataContainer.getAttribute('data-api-data'));
     const {
