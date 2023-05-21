@@ -28,7 +28,7 @@ const VideoInfoLoader = (function () {
           // setcountryToken,
           // setcountryURL,
         },
-        language,
+        language: i18nLanguage,
         // locale,
       },
       // isMonitoringLogUser,
@@ -203,7 +203,8 @@ const VideoInfoLoader = (function () {
       userKey,
       hasOwnerThread: threads.find(t => t.isOwnerThread),
       when: null,
-      language,
+      language: i18nLanguage,
+      i18nLanguage,
       availableLanguageList,
       frontendId,
       frontendVersion

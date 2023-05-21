@@ -44,13 +44,12 @@ const {ThreadLoader} = (() => {
       let url = `https://nvapi.nicovideo.jp/v1/comment/keys/thread?videoId=${videoId}`;
 
       console.log('getThreadKey url: ', url);
-      const headers = Object.assign({
-        'X-Frontend-Id': FRONT_ID,
-        'X-Frontend-Version': FRONT_VER,
-      }, options.cookie ? {Cookie: options.cookie} : {});
       try {
         const { meta, data } = await netUtil.fetch(url, {
-          headers,
+          headers: {
+            'X-Frontend-Id': FRONT_ID,
+            'X-Frontend-Version': FRONT_VER,
+          },
           credentials: 'include'
         }).then(res => res.json());
         if (meta.status !== 200) {
@@ -67,13 +66,12 @@ const {ThreadLoader} = (() => {
       const url = `https://nvapi.nicovideo.jp/v1/comment/keys/post?threadId=${threadId}`;
 
       console.log('getPostKey url: ', url);
-      const headers = Object.assign({
-        'X-Frontend-Id': FRONT_ID,
-        'X-Frontend-Version': FRONT_VER,
-      }, options.cookie ? {Cookie: options.cookie} : {});
       try {
         const { meta, data } = await netUtil.fetch(url, {
-          headers,
+          headers: {
+            'X-Frontend-Id': FRONT_ID,
+            'X-Frontend-Version': FRONT_VER,
+          },
           credentials: 'include'
         }).then(res => res.json());
         if (meta.status !== 200) {
@@ -86,16 +84,14 @@ const {ThreadLoader} = (() => {
     }
 
     async _post(url, body, options = {}) {
-      const headers = {
-        'X-Frontend-Id': FRONT_ID,
-        'X-Frontend-Version': FRONT_VER,
-        'Content-Type': 'text/plain; charset=UTF-8'
-      };
       try {
         const { meta, data } = await netUtil.fetch(url, {
           method: 'POST',
-          dataType: 'text',
-          headers,
+          headers: {
+            'X-Frontend-Id': FRONT_ID,
+            'X-Frontend-Version': FRONT_VER,
+            'Content-Type': 'text/plain; charset=UTF-8'
+          },
           body
         }).then(res => res.json());
         if (meta.status !== 200) {
@@ -138,16 +134,14 @@ const {ThreadLoader} = (() => {
 
       const url = 'https://nvcomment.nicovideo.jp/v1/threads';
       console.log('load threads...', url, packet);
-      const headers = {
-        'X-Frontend-Id': FRONT_ID,
-        'X-Frontend-Version': FRONT_VER,
-        'Content-Type': 'text/plain; charset=UTF-8'
-      };
       try {
         const { meta, data } = await netUtil.fetch(url, {
           method: 'POST',
-          dataType: 'text',
-          headers,
+          headers: {
+            'X-Frontend-Id': FRONT_ID,
+            'X-Frontend-Version': FRONT_VER,
+            'Content-Type': 'text/plain; charset=UTF-8'
+          },
           body: JSON.stringify(packet)
         }).then(res => res.json());
         if (meta.status !== 200) {
@@ -273,14 +267,13 @@ const {ThreadLoader} = (() => {
       const url = `https://nvapi.nicovideo.jp/v1/comment/keys/nicoru?threadId=${threadId}`;
 
       console.log('getNicoruKey url: ', url);
-      const headers = Object.assign({
-        'X-Frontend-Id': FRONT_ID,
-        'X-Frontend-Version': FRONT_VER,
-        'X-Niconico-Language': options.language || 'ja-jp'
-      }, options.cookie ? {Cookie: options.cookie} : {});
       try {
         const { meta, data } = await netUtil.fetch(url, {
-          headers,
+          headers: {
+            'X-Frontend-Id': FRONT_ID,
+            'X-Frontend-Version': FRONT_VER,
+            'X-Niconico-Language': options.language || 'ja-jp'
+          },
           credentials: 'include'
         }).then(res => res.json());
         if (meta.status !== 200) {

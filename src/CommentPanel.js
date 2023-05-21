@@ -1395,7 +1395,7 @@ class CommentPanelView extends Emitter {
 
     const langClass = `lang-${commentPanel.getLanguage()}`;
     if (!$view.hasClass(langClass)) {
-      $view.raf.removeClass('lang-ja-jp lang-en-us lang-zh-tw');
+      $view.raf.removeClass(this.languages.map(([x]) => `lang-${x}`).join(' '));
       $view.raf.addClass(langClass);
     }
   }
