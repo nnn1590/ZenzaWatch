@@ -150,26 +150,14 @@ class HoverMenu {
           target.addEventListener('click', blockNavigation);
       });
     }
-    uq('body').on('click', e => {
-      if (e.ctrlKey) {
-        return;
-      }
+    const onClick = e => {
+      if (e.ctrlKey) { return; }
       const target = this._closest(e.target);
       if (!target || target.classList.contains('noHoverMenu')) {
         return;
       }
-      if (target.closest('.NicorepoItem_video')) {
-        // console.nicoru('nicorepoi', target, target.href);
-        e.stopPropagation();
-        // history.pushState(null, null, target.href);
-      }
       let href = target.dataset.href || target.href;
       let watchId = nicoUtil.getWatchId(href);
-      let host = target.hostname;
-      if (!['www.nicovideo.jp', 'sp.nicovideo.jp', 'nico.ms'].includes(host)) {
-        return;
-      }
-      this._query = nicoUtil.parseWatchQuery((target.search || '').substr(1));
       if (!watchId || !watchId.match(/^[a-z0-9]+$/)) {
         return;
       }
@@ -177,8 +165,14 @@ class HoverMenu {
         return;
       }
 
+      if (target.closest('.NicorepoItem_video')) {
+        // console.nicoru('nicorepoi', target, target.href);
+        e.stopPropagation();
+        // history.pushState(null, null, target.href);
+      }
       e.preventDefault();
 
+      this._query = nicoUtil.parseWatchQuery((target.search || '').substr(1));
       if (e.shiftKey) {
         // 秘密機能。最後にZenzaWatchを開いたウィンドウで開く
         this._send(watchId);
@@ -187,6 +181,18 @@ class HoverMenu {
       }
 
       window.setTimeout(() => ZenzaWatch.emitter.emit('hideHover'), 1500);
+    };
+    uq('body').on('mouseover', e => {
+      const target = this._closest(e.target);
+      if (!target || target.classList.contains('noHoverMenu')) {
+        return;
+      }
+      let host = target.hostname;
+      if (!['www.nicovideo.jp', 'sp.nicovideo.jp', 'nico.ms'].includes(host)) {
+        return;
+      }
+      target.removeEventListener('click', onClick);
+      target.addEventListener('click', onClick);
     });
   }
 }
