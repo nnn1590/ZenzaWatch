@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.30
+// @version        2.6.3-fix-playlist.31
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.30';
+    var VER = '2.6.3-fix-playlist.31';
     const ENV = 'DEV';
 
 
@@ -30584,37 +30584,43 @@ class HoverMenu {
 					target.addEventListener('click', blockNavigation);
 			});
 		}
-		uq('body').on('click', e => {
-			if (e.ctrlKey) {
-				return;
-			}
+		const onClick = e => {
+			if (e.ctrlKey) { return; }
 			const target = this._closest(e.target);
 			if (!target || target.classList.contains('noHoverMenu')) {
 				return;
 			}
-			if (target.closest('.NicorepoItem_video')) {
-				e.stopPropagation();
-			}
 			let href = target.dataset.href || target.href;
 			let watchId = nicoUtil.getWatchId(href);
-			let host = target.hostname;
-			if (!['www.nicovideo.jp', 'sp.nicovideo.jp', 'nico.ms'].includes(host)) {
-				return;
-			}
-			this._query = nicoUtil.parseWatchQuery((target.search || '').substr(1));
 			if (!watchId || !watchId.match(/^[a-z0-9]+$/)) {
 				return;
 			}
 			if (watchId.startsWith('lv')) {
 				return;
 			}
+			if (target.closest('.NicorepoItem_video')) {
+				e.stopPropagation();
+			}
 			e.preventDefault();
+			this._query = nicoUtil.parseWatchQuery((target.search || '').substr(1));
 			if (e.shiftKey) {
 				this._send(watchId);
 			} else {
 				this._open(watchId);
 			}
 			window.setTimeout(() => ZenzaWatch.emitter.emit('hideHover'), 1500);
+		};
+		uq('body').on('mouseover', e => {
+			const target = this._closest(e.target);
+			if (!target || target.classList.contains('noHoverMenu')) {
+				return;
+			}
+			let host = target.hostname;
+			if (!['www.nicovideo.jp', 'sp.nicovideo.jp', 'nico.ms'].includes(host)) {
+				return;
+			}
+			target.removeEventListener('click', onClick);
+			target.addEventListener('click', onClick);
 		});
 	}
 }
