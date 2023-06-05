@@ -168,10 +168,8 @@ const {ThreadLoader} = (() => {
       console.timeEnd(timeKey);
       debug.lastMessageServerResult = result;
 
-      let totalResCount = result.globalComments[0].count;
-      let threadId;
+      let totalResCount = result.globalComments.reduce((count, current) => (count + current.count), 0);
       for (const thread of result.threads) {
-        threadId = parseInt(thread.id, 10);
         const forkLabel = thread.fork;
         // 投稿者コメントはGlobalにカウントされていない
         if (forkLabel === 'easy') {
@@ -184,11 +182,11 @@ const {ThreadLoader} = (() => {
       const threadInfo = {
         userId,
         videoId,
-        threadId,
-        is184Forced:   msgInfo.defaultThread.is184Forced,
+        threadId: msgInfo.threadId,
+        is184Forced: msgInfo.defaultThread.is184Forced,
         totalResCount,
-        language:   msgInfo.language,
-        when:       msgInfo.when,
+        language: msgInfo.language,
+        when: msgInfo.when,
         isWaybackMode: !!msgInfo.when
       };
 
