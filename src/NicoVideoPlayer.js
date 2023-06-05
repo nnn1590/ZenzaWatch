@@ -169,9 +169,10 @@ class NicoVideoPlayer extends Emitter {
   }
   _onMouseWheel(e, delta) {
     if (delta > 0) { // up
-      this.volumeUp();
-    } else {         // down
-      this.volumeDown();
+      return this.volumeUp();
+    }
+    if (delta < 0) { // down
+      return this.volumeDown();
     }
   }
   volumeUp() {
@@ -1102,10 +1103,11 @@ class VideoPlayer extends Emitter {
     }
     console.log('%c_onMouseWheel:', 'background: cyan;', e);
     e.stopPropagation();
-    const delta = -parseInt(e.deltaY, 10);
-    if (delta !== 0) {
-      this.emit('mouseWheel', e, delta);
+    const delta = e.deltaY * -1;
+    if (Number.isNaN(delta)) {
+      return;
     }
+    this.emit('mouseWheel', e, delta);
   }
 
   _onStalled(e) {
