@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.31
+// @version        2.6.3-fix-playlist.32
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.31';
+    var VER = '2.6.3-fix-playlist.32';
     const ENV = 'DEV';
 
 
@@ -8954,10 +8954,8 @@ const {ThreadLoader} = (() => {
 			}
 			console.timeEnd(timeKey);
 			debug.lastMessageServerResult = result;
-			let totalResCount = result.globalComments[0].count;
-			let threadId;
+			let totalResCount = result.globalComments.reduce((count, current) => (count + current.count), 0);
 			for (const thread of result.threads) {
-				threadId = parseInt(thread.id, 10);
 				const forkLabel = thread.fork;
 				if (forkLabel === 'easy') {
 					const resCount = thread.commentCount;
@@ -8967,11 +8965,11 @@ const {ThreadLoader} = (() => {
 			const threadInfo = {
 				userId,
 				videoId,
-				threadId,
-				is184Forced:   msgInfo.defaultThread.is184Forced,
+				threadId: msgInfo.threadId,
+				is184Forced: msgInfo.defaultThread.is184Forced,
 				totalResCount,
-				language:   msgInfo.language,
-				when:       msgInfo.when,
+				language: msgInfo.language,
+				when: msgInfo.when,
 				isWaybackMode: !!msgInfo.when
 			};
 			msgInfo.threadInfo = threadInfo;
@@ -9477,9 +9475,10 @@ class NicoVideoPlayer extends Emitter {
 	}
 	_onMouseWheel(e, delta) {
 		if (delta > 0) { // up
-			this.volumeUp();
-		} else {         // down
-			this.volumeDown();
+			return this.volumeUp();
+		}
+		if (delta < 0) { // down
+			return this.volumeDown();
 		}
 	}
 	volumeUp() {
@@ -10308,10 +10307,11 @@ class VideoPlayer extends Emitter {
 		}
 		console.log('%c_onMouseWheel:', 'background: cyan;', e);
 		e.stopPropagation();
-		const delta = -parseInt(e.deltaY, 10);
-		if (delta !== 0) {
-			this.emit('mouseWheel', e, delta);
+		const delta = e.deltaY * -1;
+		if (Number.isNaN(delta)) {
+			return;
 		}
+		this.emit('mouseWheel', e, delta);
 	}
 	_onStalled(e) {
 		this.emit('stalled', e);
