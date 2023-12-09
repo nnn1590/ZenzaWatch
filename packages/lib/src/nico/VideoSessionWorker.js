@@ -184,16 +184,17 @@ const VideoSessionWorker = (() => {
     class VideoSession {
 
       static create(params) {
-        if (params.serverType === 'dmc') {
+        if (params.serverType === 'domand') {
+          return new DomandSession(params);
+        } else if (params.serverType === 'dmc') {
           return new DmcSession(params);
         } else {
-          return new SmileSession(params);
+          throw new Error('Unknown server type');
         }
       }
 
       constructor(params) {
         this._videoInfo = params.videoInfo;
-        this._dmcInfo = params.dmcInfo;
 
         this._isPlaying = () => true;
         this._pauseCount = 0;
@@ -207,15 +208,16 @@ const VideoSessionWorker = (() => {
         this._heartBeatTimer = null;
 
         this._useSSL = !!params.useSSL;
+        this._useHLS = !!params.useHLS;
         this._useWellKnownPort = true;
 
         this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
         this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
       }
 
-      connect() {
+      async connect() {
         this._createdAt = Date.now();
-        return this._createSession(this._videoInfo, this._dmcInfo);
+        return await this._createSession();
       }
 
       enableHeartBeat() {
@@ -257,22 +259,96 @@ const VideoSessionWorker = (() => {
         }
       }
 
-      close() {
+      async close() {
         this._isClosed = true;
         this.disableHeartBeat();
-        return this._deleteSession();
+        return await this._deleteSession();
       }
 
       get isDeleted() {
         return !!this._isDeleted;
       }
 
+      get isDomand() {
+        return false;
+      }
+
       get isDmc() {
-        return this._serverType === 'dmc';
+        return false;
       }
 
       get isAbnormallyClosed() {
         return this._isAbnormallyClosed;
+      }
+    }
+
+    class DomandSession extends VideoSession {
+      constructor(params) {
+        super(params);
+        this._serverType = 'domand';
+        this._expireTime = new Date();
+        this._domandInfo = this._videoInfo.domandInfo;
+      }
+
+      async _createSession() {
+        console.time('create Domand session');
+        if (!this._useHLS) {
+          throw new Error('HLSに未対応');
+        }
+        const video = this._domandInfo.videos[0].id;
+        const audio = this._domandInfo.audios[0].id;
+        const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/hls`;
+        const result = await util.fetch(url, {
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Frontend-Id': 6,
+            'X-Frontend-Version': '0',
+            'X-Request-With': 'https://www.nicovideo.jp',
+            'X-Access-Right-Key': this._domandInfo.accessRightKey,
+          },
+          credentials: 'include',
+          body: JSON.stringify({outputs: [[video, audio]]})
+        }).then(res => res.json());
+        if (result.meta.status == null || result.meta.status >= 300) {
+          throw new Error('cannot create domand session', result)
+        }
+        this._lastResponse = result.data || {};
+        const {
+          contentUrl,
+          createTime,
+          expireTime
+        } = this._lastResponse;
+        this._lastUpdate = Date.now();
+        this._expireTime = new Date(expireTime);
+        this._videoSessionInfo = {
+          type: 'domand',
+          url: contentUrl,
+          lastResponse: result
+        };
+        console.timeEnd('create Domand session');
+        return this._videoSessionInfo;
+      }
+
+      async _deleteSession() {
+        if (this._isDeleted) {
+          return;
+        }
+        this._isDeleted = true;
+      }
+
+      get isDeleted() {
+        if (this._isDeleted) {
+          return true;
+        }
+        if (Date.now() > this._expireTime) {
+          this._isDeleted = true;
+        }
+        return this._isDeleted;
+      }
+
+      get isDomand() {
+        return true;
       }
     }
 
@@ -284,12 +360,13 @@ const VideoSessionWorker = (() => {
         this._heartBeatInterval = DMC_HEART_BEAT_INTERVAL_MS;
         this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
         this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
-        this._useHLS = typeof params.useHLS === 'boolean' ? params.useHLS : true;
         this._lastUpdate = Date.now();
         this._heartbeatLifetime = this._heartBeatInterval;
+        this._dmcInfo = this._videoInfo.dmcInfo.toJSON();
       }
 
-      _createSession(videoInfo, dmcInfo) {
+      _createSession() {
+        const dmcInfo = this._dmcInfo;
         console.time('create DMC session');
         const baseUrl = (dmcInfo.urls.find(url => url.is_well_known_port === this._useWellKnownPort) || dmcInfo.urls[0]).url;
         return new Promise((resolve, reject) => {
@@ -387,72 +464,9 @@ const VideoSessionWorker = (() => {
       get isDeleted() {
         return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifetime * 1.2;
       }
-    }
 
-    class SmileSession extends VideoSession {
-      constructor(params) {
-        super(params);
-        this._serverType = 'smile';
-        this._heartBeatInterval = SMILE_HEART_BEAT_INTERVAL_MS;
-        this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
-        this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
-        this._lastUpdate = Date.now();
-      }
-
-      _createSession(videoInfo) {
-        this.enableHeartBeat();
-        return Promise.resolve(videoInfo.videoUrl);
-      }
-
-      _heartBeat() {
-         let url = this._videoInfo.watchUrl;
-         let query = [
-           'mode=pc_html5',
-           'playlist_token=' + this._videoInfo.playlistToken,
-           'continue_watching=1',
-           'watch_harmful=2'
-         ];
-         if (this._videoInfo.isEconomy) {
-           query.push(this._videoInfo.isEconomy ? 'eco=1' : 'eco=0');
-         }
-
-         if (query.length > 0) {
-           url += '?' + query.join('&');
-         }
-
-         util.fetch(url, {
-           timeout: 10000,
-           credentials: 'include'
-         }).then(res => res.json())
-           .then(this._onHeartBeatSuccess)
-           .catch(this._onHeartBeatFail);
-      }
-
-      _deleteSession() {
-        if (this._isDeleted) {
-          return Promise.resolve();
-        }
-        this._isDeleted = true;
-        return Promise.resolve();
-      }
-
-      _onHeartBeatSuccess(result) {
-        this._lastResponse = result;
-        if (result.status !== 'ok') {
-          return this._onHeartBeatFail();
-        }
-
-        this._lastUpdate = Date.now();
-        if (result && result.flashvars && result.flashvars.watchAuthKey) {
-          this._videoInfo.watchAuthKey = result.flashvars.watchAuthKey;
-        }
-
-      }
-
-      // smileには明確なセッション終了の概念がないため、
-      // cookieの有効期限が切れていそうな時間が経っているかどうかで判断する
-      get isDeleted() {
-        return this._isDeleted || (Date.now() - this._lastUpdate > 10 * 60 * 1000);
+      get isDmc() {
+        return true;
       }
     }
 
@@ -700,8 +714,7 @@ const VideoSessionWorker = (() => {
   const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
     await initWorker();
     const params = {
-      videoInfo: videoInfo.getData(),
-      dmcInfo: videoInfo.dmcInfo ? videoInfo.dmcInfo.getData() : null,
+      videoInfo: videoInfo.toJSON(),
       videoQuality,
       serverType,
       useHLS

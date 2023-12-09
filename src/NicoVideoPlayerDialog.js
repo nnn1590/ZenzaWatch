@@ -467,7 +467,6 @@ class NicoVideoPlayerDialogView extends Emitter {
     }
   }
   _onVideoServerType(type, sessionInfo) {
-    this.toggleClass('is-dmcPlaying', type === 'dmc');
     this.emit('videoServerType', type, sessionInfo);
   }
   _onVideoPlay() {
@@ -500,8 +499,8 @@ class NicoVideoPlayerDialogView extends Emitter {
       isBackComment: 'is-backComment',
       isShowComment: 'is-showComment',
       isDebug: 'is-debug',
+      isDomandAvailable: 'is-domandAvailable',
       isDmcAvailable: 'is-dmcAvailable',
-      isDmcPlaying: 'is-dmcPlaying',
       isError: 'is-error',
       isLoading: 'is-loading',
       isMute: 'is-mute',
@@ -986,14 +985,6 @@ NicoVideoPlayerDialogView.__css__ = `
 
   .is-regularUser  .forPremium {
     display: none !important;
-  }
-
-  .forDmc {
-    display: none;
-  }
-
-  .is-dmcPlaying .forDmc {
-    display: inherit;
   }
 
   .zenzaVideoPlayerDialog * {
@@ -2082,21 +2073,24 @@ class NicoVideoPlayerDialog extends Emitter {
     const videoInfo = this._videoInfo = new VideoInfoModel(videoInfoData, localCacheData);
     this._watchId = videoInfo.watchId;
     WatchInfoCacheDb.put(this._watchId, {videoInfo});
-    let serverType = 'domand';
-    if (!videoInfo.isDmcAvailable) {
-      serverType = 'domand';
-    } else if (videoInfo.isDmcOnly) {
+    let serverType;
+    let videoQuality;
+    if (!videoInfo.isDomandOnly && this._playerConfig.props.autoDisableDmc && videoInfo.maybeBetterQualityServerType === 'dmc') {
       serverType = 'dmc';
-    } else if (['dmc', 'domand'].includes(this._videoWatchOptions.videoServerType)) {
-      serverType = this._videoWatchOptions.videoServerType;
+      videoQuality = this._playerConfig.props.dmcVideoQuality;
+    } else if (videoInfo.isDomandOnly || (this._videoWatchOptions.videoServerType === 'domand' && videoInfo.isDomandAvailable)) {
+      serverType = 'domand';
+      videoQuality = this._playerConfig.props.domandVideoQuality;
+    } else if (videoInfo.isDmcOnly || (this._videoWatchOptions.videoServerType === 'dmc' && videoInfo.isDmcAvailable)) {
+      serverType = 'dmc';
+      videoQuality = this._playerConfig.props.dmcVideoQuality;
     } else {
-      const disableDomand = this._playerConfig.props.autoDisableDmc &&
-        this._videoWatchOptions.videoServerType !== 'dmc' &&
-        videoInfo.maybeBetterQualityServerType === 'dmc';
-      serverType = disableDomand ? 'domand' : 'dmc';
+      serverType = 'domand';
+      videoQuality = this._playerConfig.props.domandVideoQuality;
     }
 
     this._state.setState({
+      isDomandAvailable: videoInfo.isDomandAvailable,
       isDmcAvailable: videoInfo.isDmcAvailable,
       isCommunity: videoInfo.isCommunityVideo,
       isMymemory: videoInfo.isMymemory,
@@ -2105,13 +2099,14 @@ class NicoVideoPlayerDialog extends Emitter {
     });
     MediaSessionApi.updateByVideoInfo(this._videoInfo);
 
-    const isHLSRequired = videoInfo.dmcInfo && videoInfo.dmcInfo.isHLSRequired;
+    const isHLSRequired = videoInfo.isHLSRequired;
     const isHLSSupported = !!global.debug.isHLSSupported ||
-    document.createElement('video').canPlayType('application/x-mpegURL') !== '';
-    const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired']);
-      this._videoSession = await VideoSessionWorker.create({
+      document.createElement('video').canPlayType('application/vnd.apple.mpegURL') !== '' ||
+      document.createElement('video').canPlayType('application/x-mpegURL') !== '';
+    const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired'] || serverType != 'dmc');
+    this._videoSession = await VideoSessionWorker.create({
       videoInfo,
-      videoQuality: this._playerConfig.props.dmcVideoQuality,
+      videoQuality,
       serverType,
       isPlayingCallback: () => this.isPlaying,
       useWellKnownPort: true,
@@ -2140,7 +2135,6 @@ class NicoVideoPlayerDialog extends Emitter {
       this.emit('videoServerType', 'domand', {}, videoInfo);
     }
     this._state.videoInfo = videoInfo;
-    this._state.isDmcPlaying = this._videoSession.isDmc;
 
     this.loadComment(videoInfo.msgInfo);
 

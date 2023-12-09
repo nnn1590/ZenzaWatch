@@ -109,17 +109,13 @@ class DmcInfo {
     return this._rawData.encryption || null;
   }
 
-  getData() {
+  toJSON() {
     const data = {};
     for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
       if (typeof this[prop] === 'function') { continue; }
       data[prop] = this[prop];
     }
     return data;
-  }
-
-  toJSON() {
-    return JSON.stringify(this.getData());
   }
 }
 
@@ -342,6 +338,14 @@ class VideoInfoModel {
     return !!(this._videoDetail.commons_tree_exists);
   }
 
+  get isHLSRequired() {
+    if (this.isDmcAvailable) {
+      return this.dmcInfo.isHLSRequired
+    } else {
+      return this.isDomandAvailable;
+    }
+  }
+
   get isDomandAvailable() {
     return this._rawData.isDomand;
   }
@@ -551,7 +555,7 @@ class VideoInfoModel {
     return 'dmc';
   }
 
-  getData() {
+  toJSON() {
     const data = {};
     for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
       if (typeof this[prop] === 'function') { continue; }
