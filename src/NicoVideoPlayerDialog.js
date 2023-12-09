@@ -120,7 +120,7 @@ class VideoWatchOptions {
     return this._options.reloadCount > 0;
   }
   get videoServerType() {
-    return this._options.videoServerType;
+    return this._options.videoServerType ?? this._config.getValue('videoServerType');
   }
   get isAutoZenTubeDisabled() {
     return !!this._options.isAutoZenTubeDisabled;
@@ -471,7 +471,6 @@ class NicoVideoPlayerDialogView extends Emitter {
     }
   }
   _onVideoServerType(type, sessionInfo) {
-    this.toggleClass('is-dmcPlaying', type === 'dmc');
     this.emit('videoServerType', type, sessionInfo);
   }
   _onVideoPlay() {
@@ -504,8 +503,8 @@ class NicoVideoPlayerDialogView extends Emitter {
       isBackComment: 'is-backComment',
       isShowComment: 'is-showComment',
       isDebug: 'is-debug',
+      isDomandAvailable: 'is-domandAvailable',
       isDmcAvailable: 'is-dmcAvailable',
-      isDmcPlaying: 'is-dmcPlaying',
       isError: 'is-error',
       isLoading: 'is-loading',
       isMute: 'is-mute',
@@ -990,14 +989,6 @@ NicoVideoPlayerDialogView.__css__ = `
 
   .is-regularUser  .forPremium {
     display: none !important;
-  }
-
-  .forDmc {
-    display: none;
-  }
-
-  .is-dmcPlaying .forDmc {
-    display: inherit;
   }
 
   .zenzaVideoPlayerDialog * {
@@ -1590,9 +1581,14 @@ class NicoVideoPlayerDialog extends Emitter {
         this._playerConfig.props.dmcVideoQuality = param;
         this.reload({videoServerType: 'dmc'});
         break;
+      case 'update-domandVideoQuality':
+        this._playerConfig.props.videoServerType = 'domand';
+        this._playerConfig.props.dmcVideoQuality = param;
+        this.reload({videoServerType: 'domand'});
+        break;
       case 'update-videoServerType':
         this._playerConfig.props.videoServerType = param;
-        this.reload({videoServerType: param === 'dmc' ? 'dmc' : 'smile'});
+        this.reload({videoServerType: param === 'domand' ? 'domand' : 'dmc'});
         break;
       case 'update-commentLanguage':
         if (this._playerConfig.props.commentLanguage === param || this._videoInfo.msgInfo.i18nLanguage === 'ja-jp') {
@@ -2073,24 +2069,24 @@ class NicoVideoPlayerDialog extends Emitter {
     const videoInfo = this._videoInfo = new VideoInfoModel(videoInfoData, localCacheData);
     this._watchId = videoInfo.watchId;
     WatchInfoCacheDb.put(this._watchId, {videoInfo});
-    let serverType = 'dmc';
-    if (!videoInfo.isDmcAvailable) {
-      serverType = 'smile';
-    } else if (videoInfo.isDmcOnly) {
+    let serverType;
+    let videoQuality;
+    if (!videoInfo.isDomandOnly && this._playerConfig.props.autoDisableDmc && videoInfo.maybeBetterQualityServerType === 'dmc') {
       serverType = 'dmc';
-    } else if (['dmc', 'smile'].includes(this._videoWatchOptions.videoServerType)) {
-      serverType = this._videoWatchOptions.videoServerType;
-    } else if (this._playerConfig.props.videoServerType === 'smile') {
-      serverType = 'smile';
+      videoQuality = this._playerConfig.props.dmcVideoQuality;
+    } else if (videoInfo.isDomandOnly || (this._videoWatchOptions.videoServerType === 'domand' && videoInfo.isDomandAvailable)) {
+      serverType = 'domand';
+      videoQuality = this._playerConfig.props.domandVideoQuality;
+    } else if (videoInfo.isDmcOnly || (this._videoWatchOptions.videoServerType === 'dmc' && videoInfo.isDmcAvailable)) {
+      serverType = 'dmc';
+      videoQuality = this._playerConfig.props.dmcVideoQuality;
     } else {
-      const disableDmc =
-        this._playerConfig.props.autoDisableDmc &&
-        this._videoWatchOptions.videoServerType !== 'smile' &&
-        videoInfo.maybeBetterQualityServerType === 'smile';
-      serverType = disableDmc ? 'smile' : 'dmc';
+      serverType = 'domand';
+      videoQuality = this._playerConfig.props.domandVideoQuality;
     }
 
     this._state.setState({
+      isDomandAvailable: videoInfo.isDomandAvailable,
       isDmcAvailable: videoInfo.isDmcAvailable,
       isCommunity: videoInfo.isCommunityVideo,
       isMymemory: videoInfo.isMymemory,
@@ -2099,16 +2095,15 @@ class NicoVideoPlayerDialog extends Emitter {
     });
     MediaSessionApi.updateByVideoInfo(this._videoInfo);
 
-    const isHLSRequired = videoInfo.dmcInfo && videoInfo.dmcInfo.isHLSRequired;
+    const isHLSRequired = videoInfo.isHLSRequired;
     const isHLSSupported = !!global.debug.isHLSSupported ||
-    document.createElement('video').canPlayType('application/x-mpegURL') !== '';
-    const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired']);
-      this._videoSession = await VideoSessionWorker.create({
+      document.createElement('video').canPlayType('application/vnd.apple.mpegURL') !== '' ||
+      document.createElement('video').canPlayType('application/x-mpegURL') !== '';
+    const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired'] || serverType != 'dmc');
+    this._videoSession = await VideoSessionWorker.create({
       videoInfo,
-      videoQuality: this._playerConfig.props.dmcVideoQuality,
+      videoQuality,
       serverType,
-      isPlayingCallback: () => this.isPlaying,
-      useWellKnownPort: true,
       useHLS
     });
 
@@ -2116,25 +2111,18 @@ class NicoVideoPlayerDialog extends Emitter {
       return this._onVideoFilterMatch();
     }
 
-    if (this._videoSession.isDmc) {
-      NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
-        .then(() => this._videoSession.connect())
-        .then(sessionInfo => {
-          this.setVideo(sessionInfo.url);
-          videoInfo.setCurrentVideo(sessionInfo.url);
-          this.emit('videoServerType', 'dmc', sessionInfo, videoInfo);
-        })
-        .catch(this._onVideoSessionFail.bind(this));
-    } else {
-      if (this._playerConfig.props.enableVideoSession) {
-        this._videoSession.connect();
+    try {
+      if (this._videoSession.isDmc) {
+        await NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
       }
-      videoInfo.setCurrentVideo(videoInfo.videoUrl);
-      this.setVideo(videoInfo.videoUrl);
-      this.emit('videoServerType', 'smile', {}, videoInfo);
+      const sessionInfo = await this._videoSession.connect();
+      this.setVideo(sessionInfo.url);
+      videoInfo.setCurrentVideo(sessionInfo.url);
+      this.emit('videoServerType', sessionInfo.type, sessionInfo, videoInfo);
+    } catch (e) {
+      this._onVideoSessionFail(e);
     }
     this._state.videoInfo = videoInfo;
-    this._state.isDmcPlaying = this._videoSession.isDmc;
 
     this.loadComment(videoInfo.msgInfo);
 
@@ -2396,7 +2384,7 @@ class NicoVideoPlayerDialog extends Emitter {
     };
 
     const sessionState = await this._videoSession.getState();
-    const {isDmc, isDeleted, isAbnormallyClosed} = sessionState;
+    const {isDomand, isDmc, isDeleted, isAbnormallyClosed} = sessionState;
     const videoWatchOptions = this._videoWatchOptions;
     const code = (e && e.target && e.target.error && e.target.error.code) || 0;
     window.console.error('VideoError!', code, e, (e.target && e.target.error), {isDeleted, isAbnormallyClosed});
@@ -2408,12 +2396,12 @@ class NicoVideoPlayerDialog extends Emitter {
       } else {
         this._setErrorMessage('動画のセッションが切断されました。');
       }
-    } else if (!isDmc && this._videoInfo.isDmcAvailable) {
-      this._setErrorMessage('SMILE動画の再生に失敗しました。DMC動画に接続します。');
-      retry({economy: false, videoServerType: 'dmc'});
-    } else if (!isDmc && (!this._videoWatchOptions.isEconomySelected && !this._videoInfo.isEconomy)) {
-      this._setErrorMessage('動画の再生に失敗しました。エコノミー動画に接続します。');
-      retry({economy: true, videoServerType: 'smile'});
+    } else if (isDomand && this._videoInfo.isDmcAvailable) {
+      this._setErrorMessage('Domand動画の再生に失敗しました。DMC動画に接続します。');
+      retry({videoServerType: 'dmc'});
+    } else if (isDmc && this._videoInfo.isDomandAvailable) {
+      this._setErrorMessage('DMC動画の再生に失敗しました。Domand動画に接続します。');
+      retry({videoServerType: 'domand'});
     } else {
       this._setErrorMessage('動画の再生に失敗しました。');
     }
