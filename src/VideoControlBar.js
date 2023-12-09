@@ -220,12 +220,11 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
       const config = this._playerConfig;
       const $button = this._$videoServerTypeMenu;
       const $select  = this._$videoServerTypeSelectMenu;
-      const $current = $select.find('.currentVideoQuality');
 
-      const updateSmileVideoQuality = value => {
-        const $dq = $select.find('.smileVideoQuality');
+      const updateDomandVideoQuality = value => {
+        const $dq = $select.find('.domandVideoQuality');
         $dq.removeClass('selected');
-        $select.find('.select-smile-' + (value === 'eco' ? 'economy' : 'default')).addClass('selected');
+        $select.find('.select-domand-' + value).addClass('selected');
       };
 
       const updateDmcVideoQuality = value => {
@@ -235,16 +234,18 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
       };
 
       const onVideoServerType = (type, videoSessionInfo) => {
-        $button.raf.removeClass('is-smile-playing is-dmc-playing')
-          .raf.addClass(`is-${type === 'dmc' ? 'dmc' : 'smile'}-playing`);
+        $button.raf.removeClass('is-domand-playing is-dmc-playing')
+          .raf.addClass(`is-${type === 'dmc' ? 'dmc' : 'domand'}-playing`);
         $select.find('.serverType').removeClass('selected');
-        $select.find(`.select-server-${type === 'dmc' ? 'dmc' : 'smile'}`).addClass('selected');
-        $current.raf.text(type !== 'dmc' ? '----' : videoSessionInfo.videoFormat.replace(/^.*h264_/, ''));
+        const $selectServer = $select.find(`.select-server-${type === 'dmc' ? 'dmc' : 'domand'}`);
+        $selectServer.addClass('selected');
+        $selectServer.find('.currentVideoQuality')
+          .raf.text(videoSessionInfo.videoFormat.replace(/^.*h264_/, ''));
       };
 
-      updateSmileVideoQuality(config.props.smileVideoQuality);
+      updateDomandVideoQuality(config.props.domandVideoQuality);
       updateDmcVideoQuality(config.props.dmcVideoQuality);
-      config.onkey('forceEconomy',    updateSmileVideoQuality);
+      config.onkey('domandVideoQuality',    updateDomandVideoQuality);
       config.onkey('dmcVideoQuality', updateDmcVideoQuality);
 
       this.player.on('videoServerType', onVideoServerType);
@@ -1278,7 +1279,7 @@ util.addStyle(`
     text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
   }
 
-  .videoServerTypeSelectMenu .smileVideoQuality,
+  .videoServerTypeSelectMenu .domandVideoQuality,
   .videoServerTypeSelectMenu .dmcVideoQuality {
     font-size: 80%;
     padding-left: 28px;
@@ -1291,7 +1292,7 @@ util.addStyle(`
   }
 
   .videoServerTypeSelectMenu .dmcVideoQuality.selected     span:before,
-  .videoServerTypeSelectMenu .smileVideoQuality.selected   span:before {
+  .videoServerTypeSelectMenu .domandVideoQuality.selected   span:before {
     left: 22px;
     font-size: 80%;
   }
@@ -1320,14 +1321,11 @@ util.addStyle(`
   }
 
 
-  /* dmcを使用している時はsmileの画質選択を薄く */
-  .is-dmc-playing .smileVideoQuality {
-    display: none;
-   }
-
-  /* dmcを選択していない状態ではdmcの画質選択を隠す */
-  .is-smile-playing .currentVideoQuality,
-  .is-smile-playing .dmcVideoQuality {
+  /* 選択していないシステムの画質選択を隠す */
+  .is-domand-playing .dmcVideoQuality,
+  .is-domand-playing .serverType.select-server-dmc .currentVideoQuality,
+  .is-dmc-playing .domandVideoQuality,
+  .is-dmc-playing .serverType.select-server-domand .currentVideoQuality {
     display: none;
   }
 
@@ -1614,8 +1612,21 @@ util.addStyle(`
               <p class="caption">動画サーバー・画質</p>
               <ul>
 
-                <li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
+                <li class="serverType select-server-domand" data-command="update-videoServerType" data-param="domand">
                   <span>新システムを使用</span>
+                  <p class="currentVideoQuality"></p>
+                </li>
+
+
+                <li class="domandVideoQuality selected select-domand-auto" data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span></li>
+                <li class="domandVideoQuality selected select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span></li>
+                <li class="domandVideoQuality selected select-domand-720p" data-command="update-domandVideoQuality" data-param="720p"><span>720p</span></li>
+                <li class="domandVideoQuality selected select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span></li>
+                <li class="domandVideoQuality selected select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span></li>
+                <li class="domandVideoQuality selected select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span></li>
+
+                <li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
+                  <span>旧システムを使用</span>
                   <p class="currentVideoQuality"></p>
                 </li>
 
@@ -1625,12 +1636,6 @@ util.addStyle(`
                 <li class="dmcVideoQuality selected select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
                 <li class="dmcVideoQuality selected select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
                 <li class="dmcVideoQuality selected select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
-
-                <li class="serverType select-server-smile" data-command="update-videoServerType" data-param="smile">
-                  <span>旧システムを使用</span>
-                </li>
-                <li class="smileVideoQuality select-smile-default" data-command="update-forceEconomy" data-param="false" data-type="bool"><span>自動</span></li>
-                <li class="smileVideoQuality select-smile-economy" data-command="update-forceEconomy" data-param="true"  data-type="bool"><span>エコノミー固定</span></li>
              </ul>
             </div>
           </div>
