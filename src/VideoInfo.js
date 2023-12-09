@@ -197,9 +197,10 @@ class VideoInfoModel {
     this._watchApiData = info.watchApiData;
     this._videoDetail = info.watchApiData.videoDetail;
     this._viewerInfo = info.viewerInfo;               // 閲覧者(＝おまいら)の情報
-    this._flvInfo = info.flvInfo;
+    this._ngFilters = info.ngFilters;
     this._msgInfo = info.msgInfo;
     this._dmcInfo = (info.dmcInfo && info.dmcInfo.movie.session) ? new DmcInfo(info.dmcInfo) : null;
+    this._domandInfo = info.domandInfo;
     this._relatedVideo = info.playlist; // playlistという名前だが実質は関連動画
     this._playlistToken = info.playlistToken;
     this._watchAuthKey = info.watchAuthKey;
@@ -245,15 +246,11 @@ class VideoInfoModel {
   }
 
   get videoUrl() {
-    return (this._flvInfo.url || '');//.replace(/^http:/, '');
+    return '';
   }
 
   get storyboardUrl() {
-    let url = this._flvInfo.url;
-    if (!url || !url.match(/smile\?m=/) || url.match(/^rtmp/)) {
-      return null;
-    }
-    return url;
+    return null;
   }
 
   /**
@@ -450,12 +447,12 @@ class VideoInfoModel {
   }
 
   get replacementWords() {
-    if (!this._flvInfo.ng_up || this._flvInfo.ng_up === '') {
-      return null;
-    }
-    return textUtil.parseQuery(
-      this._flvInfo.ng_up || ''
-    );
+    return this._ngFilters.reduce((acc, ng) => {
+      if (ng.source != null && ng.destination != null) {
+        acc[ng.source] = ng.destination;
+      }
+      return acc;
+    }, Object.create({}))
   }
 
   get playlistToken() {
