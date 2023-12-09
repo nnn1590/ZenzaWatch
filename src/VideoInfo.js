@@ -110,11 +110,22 @@ class DmcInfo {
   }
 
   toJSON() {
-    const data = {};
-    for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
-      if (typeof this[prop] === 'function') { continue; }
+    const data = Object.create(null);
+    const proto = Object.getPrototypeOf(this);
+
+    for (const prop of Object.getOwnPropertyNames(proto)) {
+      const desc = Object.getOwnPropertyDescriptor(proto, prop);
+      if (typeof desc?.get !== 'function') continue;
+
       data[prop] = this[prop];
+      if (data[prop] == null) continue;
+
+      const propDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(data[prop]), 'toJSON')
+      if (typeof propDesc?.value !== 'function') continue;
+
+      data[prop] = data[prop].toJSON();
     }
+
     return data;
   }
 }
@@ -556,11 +567,22 @@ class VideoInfoModel {
   }
 
   toJSON() {
-    const data = {};
-    for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
-      if (typeof this[prop] === 'function') { continue; }
+    const data = Object.create(null);
+    const proto = Object.getPrototypeOf(this);
+
+    for (const prop of Object.getOwnPropertyNames(proto)) {
+      const desc = Object.getOwnPropertyDescriptor(proto, prop);
+      if (typeof desc?.get !== 'function') continue;
+
       data[prop] = this[prop];
+      if (data[prop] == null) continue;
+
+      const propDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(data[prop]), 'toJSON')
+      if (typeof propDesc?.value !== 'function') continue;
+
+      data[prop] = data[prop].toJSON();
     }
+
     return data;
   }
 }

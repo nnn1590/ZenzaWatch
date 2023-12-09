@@ -362,7 +362,7 @@ const VideoSessionWorker = (() => {
         this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
         this._lastUpdate = Date.now();
         this._heartbeatLifetime = this._heartBeatInterval;
-        this._dmcInfo = this._videoInfo.dmcInfo.toJSON();
+        this._dmcInfo = this._videoInfo.dmcInfo;
       }
 
       _createSession() {
