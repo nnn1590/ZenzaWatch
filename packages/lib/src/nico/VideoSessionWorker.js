@@ -290,7 +290,7 @@ const VideoSessionWorker = (() => {
         const availableVideos = this._domandInfo.availableVideoIds;
         let videos;
         if (this._videoQuality === 'auto') {
-          videos = availableVideos;
+          videos = availableVideos.slice(0, 1);
         } else {
           let reg = new RegExp(`-${this._videoQuality}$`);
           videos = [availableVideos.find(v => reg.test(v)) ?? availableVideos[0]];
