@@ -357,6 +357,10 @@ class VideoInfoModel {
     }
   }
 
+  get actionTrackId() {
+    return this._watchApiData.clientTrackId;
+  }
+
   get isDomandAvailable() {
     return this._rawData.isDomand;
   }

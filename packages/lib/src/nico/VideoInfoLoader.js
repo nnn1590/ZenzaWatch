@@ -37,7 +37,7 @@ const VideoInfoLoader = (function () {
       client: {
         // nicosid,
         watchId,
-        // watchTrackId,
+        watchTrackId,
       },
       comment: {
         // isAttentionRequired,
@@ -300,7 +300,8 @@ const VideoInfoLoader = (function () {
       },
       viewerInfo,
       channelInfo,
-      uploaderInfo
+      uploaderInfo,
+      clientTrackId: watchTrackId,
     };
 
     const ngFilters = Array.prototype.concat(channelNg, ownerNg);

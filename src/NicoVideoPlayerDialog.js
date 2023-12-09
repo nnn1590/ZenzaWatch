@@ -2108,8 +2108,6 @@ class NicoVideoPlayerDialog extends Emitter {
       videoInfo,
       videoQuality,
       serverType,
-      isPlayingCallback: () => this.isPlaying,
-      useWellKnownPort: true,
       useHLS
     });
 

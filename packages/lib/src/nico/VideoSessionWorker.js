@@ -297,7 +297,8 @@ const VideoSessionWorker = (() => {
         }
         const video = this._domandInfo.videos[0].id;
         const audio = this._domandInfo.audios[0].id;
-        const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/hls`;
+        const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
+        const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/hls?${query.toString()}`;
         const result = await util.fetch(url, {
           method: 'post',
           headers: {
@@ -631,18 +632,18 @@ const VideoSessionWorker = (() => {
     const getSessionId = function() { return `session_${this.id++}`; }.bind({id: 0});
 
     let current = null;
-    const create = async ({videoInfo, dmcInfo, videoQuality, serverType, useHLS}) => {
+    const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
       if (current) {
         current.close();
         current = null;
       }
-      current = await VideoSession.create({
-        videoInfo, dmcInfo, videoQuality, serverType, useHLS});
+      current = await VideoSession.create({videoInfo, videoQuality, serverType, useHLS});
       const sessionId = getSessionId();
       current[SESSION_ID] = sessionId;
 
       // console.log('create', sessionId, current[SESSION_ID]);
       return {
+        isDomand: current.isDomand,
         isDmc: current.isDmc,
         sessionId
       };
