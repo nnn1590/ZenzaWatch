@@ -1587,9 +1587,14 @@ class NicoVideoPlayerDialog extends Emitter {
         this._playerConfig.props.dmcVideoQuality = param;
         this.reload({videoServerType: 'dmc'});
         break;
+      case 'update-domandVideoQuality':
+        this._playerConfig.props.videoServerType = 'domand';
+        this._playerConfig.props.dmcVideoQuality = param;
+        this.reload({videoServerType: 'domand'});
+        break;
       case 'update-videoServerType':
         this._playerConfig.props.videoServerType = param;
-        this.reload({videoServerType: param === 'dmc' ? 'dmc' : 'smile'});
+        this.reload({videoServerType: param === 'domand' ? 'domand' : 'dmc'});
         break;
       case 'update-commentLanguage':
         command = command.replace(/^update-/, '');
@@ -2077,21 +2082,18 @@ class NicoVideoPlayerDialog extends Emitter {
     const videoInfo = this._videoInfo = new VideoInfoModel(videoInfoData, localCacheData);
     this._watchId = videoInfo.watchId;
     WatchInfoCacheDb.put(this._watchId, {videoInfo});
-    let serverType = 'dmc';
+    let serverType = 'domand';
     if (!videoInfo.isDmcAvailable) {
-      serverType = 'smile';
+      serverType = 'domand';
     } else if (videoInfo.isDmcOnly) {
       serverType = 'dmc';
-    } else if (['dmc', 'smile'].includes(this._videoWatchOptions.videoServerType)) {
+    } else if (['dmc', 'domand'].includes(this._videoWatchOptions.videoServerType)) {
       serverType = this._videoWatchOptions.videoServerType;
-    } else if (this._playerConfig.props.videoServerType === 'smile') {
-      serverType = 'smile';
     } else {
-      const disableDmc =
-        this._playerConfig.props.autoDisableDmc &&
-        this._videoWatchOptions.videoServerType !== 'smile' &&
-        videoInfo.maybeBetterQualityServerType === 'smile';
-      serverType = disableDmc ? 'smile' : 'dmc';
+      const disableDomand = this._playerConfig.props.autoDisableDmc &&
+        this._videoWatchOptions.videoServerType !== 'dmc' &&
+        videoInfo.maybeBetterQualityServerType === 'dmc';
+      serverType = disableDomand ? 'domand' : 'dmc';
     }
 
     this._state.setState({
@@ -2135,7 +2137,7 @@ class NicoVideoPlayerDialog extends Emitter {
       }
       videoInfo.setCurrentVideo(videoInfo.videoUrl);
       this.setVideo(videoInfo.videoUrl);
-      this.emit('videoServerType', 'smile', {}, videoInfo);
+      this.emit('videoServerType', 'domand', {}, videoInfo);
     }
     this._state.videoInfo = videoInfo;
     this._state.isDmcPlaying = this._videoSession.isDmc;

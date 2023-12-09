@@ -245,14 +245,6 @@ class VideoInfoModel {
     return this._videoDetail.largeThumbnnail;
   }
 
-  get videoUrl() {
-    return '';
-  }
-
-  get storyboardUrl() {
-    return null;
-  }
-
   /**
    * @return Promise
    */
@@ -266,10 +258,6 @@ class VideoInfoModel {
   setCurrentVideo(v) {
     this._currentVideo = v;
     this._currentVideoPromise && this._currentVideoPromise.resolve(v);
-  }
-
-  get isEconomy() {
-    return this.videoUrl.match(/low$/) ? true : false;
   }
 
   get tagList() {
@@ -354,12 +342,16 @@ class VideoInfoModel {
     return !!(this._videoDetail.commons_tree_exists);
   }
 
-  get isDmc() {
-    return this.isDmcOnly || (this._rawData.isDmc);
+  get isDomandAvailable() {
+    return this._rawData.isDomand;
   }
 
   get isDmcAvailable() {
     return this._rawData.isDmc;
+  }
+
+  get domandInfo() {
+    return this._domandInfo;
   }
 
   get dmcInfo() {
@@ -370,8 +362,20 @@ class VideoInfoModel {
     return this._msgInfo;
   }
 
+  get isDomandOnly() {
+    return this.isDomandAvailable && !this.isDmcAvailable;
+  }
+
   get isDmcOnly() {
-    return !!this._rawData.isDmcOnly || !this.videoUrl;
+    return this.isDmcAvailable && !this.isDomandAvailable;
+  }
+
+  get hasDomandStoryboard() {
+    return this._domandInfo && this._domandInfo.isStoryboardAvailable;
+  }
+
+  get domandStoryboardInfo() {
+    return null;
   }
 
   get hasDmcStoryboard() {
@@ -506,18 +510,8 @@ class VideoInfoModel {
   }
 
   get extension() {
-    if (this.isDmc) {
+    if (this.isDomandAvailable || this.isDmcAvailable) {
       return 'mp4';
-    }
-    const url = this.videoUrl;
-    if (url.match(/smile\?m=/)) {
-      return 'mp4';
-    }
-    if (url.match(/smile\?v=/)) {
-      return 'flv';
-    }
-    if (url.match(/smile\?s=/)) {
-      return 'swf';
     }
     return 'unknown';
   }
@@ -527,64 +521,33 @@ class VideoInfoModel {
   }
 
   get maybeBetterQualityServerType() {
+    if (this.isDomandOnly) {
+      return 'domand';
+    }
     if (this.isDmcOnly) {
       return 'dmc';
     }
-    if (this.isEconomy) {
-      return 'dmc';
+    if (!this.isDmcAvailable) {
+      return 'domand';
     }
-    let dmcInfo = this.dmcInfo;
-    if (!dmcInfo) {
-      return 'smile';
-    }
-    if (/smile\?[sv]=/.test(this.videoUrl)) {
+    if (!this.isDomandAvailable) {
       return 'dmc';
     }
 
-    let smileWidth = this.width;
-    let smileHeight = this.height;
-    let dmcVideos = dmcInfo.videos;
-    let importVersion = dmcInfo.importVersion;
-
-    // ぜんぜんわからん 時はdmc
-    if (isNaN(smileWidth) || isNaN(smileHeight)) {
-      return 'dmc';
-    }
-
-    // smile側に 1280w 720h を上回る動画がある場合は再エンコードされていない
-    // smile側の再エンコードでは1280x720以下の動画しか生成されないため
-    if (smileWidth > 1280 || smileHeight > 720) {
-      return 'smile';
-    }
-
-    // if (importVersion > 0) {
-    //   return 'smile';
-    // }
-
-    // smileのほうがdmcの下限以下を持っている ≒ 再エンコードされていない
-    if (smileHeight < 360) {
-      return 'smile';
-    }
-
-    const highestDmc = Math.max(...dmcVideos.map(v => {
-      return (/_([0-9]+)p$/.exec(v)[1] || '') * 1;
+    const highestDomand = Math.max(...this.domandInfo.videos.map(v => {
+      return v.height;
     }));
 
-    if (highestDmc >= 720) {
-      return 'dmc';
+    const highestDmc = Math.max(...this.dmcInfo.videos.map(v => {
+      return v.metadata.resolution.height;
+    }));
+
+    // Domandのほうが高解像度を持っているなら恐らくDomand側が高画質
+    if (highestDomand >= highestDmc) {
+      return 'domand';
     }
 
-    // 864x486 648x486 640x384 512x384 旧プレイヤーぴったい合わせの解像度
-    if (smileHeight === 486 || smileHeight === 384) {
-      return 'smile';
-    }
-
-    // DMCのほうが高解像度を持っているなら恐らくDMC側が高画質
-    if (highestDmc >= smileHeight) {
-      return 'dmc';
-    }
-
-    // それ以外はsmile...と行きたいが判断保留は dmc
+    // それ以外はdmc
     return 'dmc';
   }
 
