@@ -108,10 +108,12 @@ const Config = (() => {
     enableVideoSession: true,
     videoServerType: 'dmc',
     // enableDmc: true, // 新サーバーを使うかどうか
-    autoDisableDmc: true, // smileのほうが高画質と思われる動画でdmcを無効にする
+    // autoDisableDmc: true, // smileのほうが高画質と思われる動画でdmcを無効にする
+    autoDisableNew: true, // dmcのほうが高画質と思われる動画でdomandを無効にする
     dmcVideoQuality: 'auto',   // 優先する画質 auto, veryhigh, high, mid, low
-    smileVideoQuality: 'default', // default eco
-    useWellKnownPort: false, // この機能なくなったぽい (常時true相当になった)
+    domandVideoQuality: 'auto', // 優先する画質 auto, 1080p, 720, 480p, 360p, 144p
+    // smileVideoQuality: 'default', // default eco
+    // useWellKnownPort: false, // この機能なくなったぽい (常時true相当になった)
     'video.hls.enable': true,
     'video.hls.segmentDuration': 6000,
     'video.hls.enableOnlyRequired': true, // hlsが必須の動画だけ有効化する

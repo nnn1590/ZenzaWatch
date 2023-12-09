@@ -1580,7 +1580,7 @@ class NicoVideoPlayerDialog extends Emitter {
         break;
       case 'update-domandVideoQuality':
         this._playerConfig.props.videoServerType = 'domand';
-        this._playerConfig.props.dmcVideoQuality = param;
+        this._playerConfig.props.domandVideoQuality = param;
         this.reload({videoServerType: 'domand'});
         break;
       case 'update-videoServerType':
@@ -2075,7 +2075,7 @@ class NicoVideoPlayerDialog extends Emitter {
     WatchInfoCacheDb.put(this._watchId, {videoInfo});
     let serverType;
     let videoQuality;
-    if (!videoInfo.isDomandOnly && this._playerConfig.props.autoDisableDmc && videoInfo.maybeBetterQualityServerType === 'dmc') {
+    if (!videoInfo.isDomandOnly && this._playerConfig.props.autoDisableNew && videoInfo.maybeBetterQualityServerType === 'dmc') {
       serverType = 'dmc';
       videoQuality = this._playerConfig.props.dmcVideoQuality;
     } else if (videoInfo.isDomandOnly || (this._videoWatchOptions.videoServerType === 'domand' && videoInfo.isDomandAvailable)) {

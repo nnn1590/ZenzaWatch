@@ -245,7 +245,7 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
 
       updateDomandVideoQuality(config.props.domandVideoQuality);
       updateDmcVideoQuality(config.props.dmcVideoQuality);
-      config.onkey('domandVideoQuality',    updateDomandVideoQuality);
+      config.onkey('domandVideoQuality', updateDomandVideoQuality);
       config.onkey('dmcVideoQuality', updateDmcVideoQuality);
 
       this.player.on('videoServerType', onVideoServerType);
