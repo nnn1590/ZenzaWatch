@@ -2115,22 +2115,16 @@ class NicoVideoPlayerDialog extends Emitter {
       return this._onVideoFilterMatch();
     }
 
-    if (this._videoSession.isDmc) {
-      NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
-        .then(() => this._videoSession.connect())
-        .then(sessionInfo => {
-          this.setVideo(sessionInfo.url);
-          videoInfo.setCurrentVideo(sessionInfo.url);
-          this.emit('videoServerType', 'dmc', sessionInfo, videoInfo);
-        })
-        .catch(this._onVideoSessionFail.bind(this));
-    } else {
-      if (this._playerConfig.props.enableVideoSession) {
-        this._videoSession.connect();
+    try {
+      if (this._videoSession.isDmc) {
+        await NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
       }
-      videoInfo.setCurrentVideo(videoInfo.videoUrl);
-      this.setVideo(videoInfo.videoUrl);
-      this.emit('videoServerType', 'domand', {}, videoInfo);
+      const sessionInfo = await this._videoSession.connect();
+      this.setVideo(sessionInfo.url);
+      videoInfo.setCurrentVideo(sessionInfo.url);
+      this.emit('videoServerType', sessionInfo.type, sessionInfo, videoInfo);
+    } catch (e) {
+      this._onVideoSessionFail(e);
     }
     this._state.videoInfo = videoInfo;
 
