@@ -2395,7 +2395,7 @@ class NicoVideoPlayerDialog extends Emitter {
     };
 
     const sessionState = await this._videoSession.getState();
-    const {isDmc, isDeleted, isAbnormallyClosed} = sessionState;
+    const {isDomand, isDmc, isDeleted, isAbnormallyClosed} = sessionState;
     const videoWatchOptions = this._videoWatchOptions;
     const code = (e && e.target && e.target.error && e.target.error.code) || 0;
     window.console.error('VideoError!', code, e, (e.target && e.target.error), {isDeleted, isAbnormallyClosed});
@@ -2407,12 +2407,12 @@ class NicoVideoPlayerDialog extends Emitter {
       } else {
         this._setErrorMessage('動画のセッションが切断されました。');
       }
-    } else if (!isDmc && this._videoInfo.isDmcAvailable) {
-      this._setErrorMessage('SMILE動画の再生に失敗しました。DMC動画に接続します。');
-      retry({economy: false, videoServerType: 'dmc'});
-    } else if (!isDmc && (!this._videoWatchOptions.isEconomySelected && !this._videoInfo.isEconomy)) {
-      this._setErrorMessage('動画の再生に失敗しました。エコノミー動画に接続します。');
-      retry({economy: true, videoServerType: 'smile'});
+    } else if (isDomand && this._videoInfo.isDmcAvailable) {
+      this._setErrorMessage('Domand動画の再生に失敗しました。DMC動画に接続します。');
+      retry({videoServerType: 'dmc'});
+    } else if (isDmc && this._videoInfo.isDomandAvailable) {
+      this._setErrorMessage('DMC動画の再生に失敗しました。Domand動画に接続します。');
+      retry({videoServerType: 'domand'});
     } else {
       this._setErrorMessage('動画の再生に失敗しました。');
     }

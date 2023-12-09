@@ -286,14 +286,14 @@ const VideoSessionWorker = (() => {
         if (!this._useHLS) {
           throw new Error('HLSに未対応');
         }
-        const audios = [this._domandInfo.availableAudioIds[0]];
+        const audio = this._domandInfo.availableAudioIds[0];
         const availableVideos = this._domandInfo.availableVideoIds;
-        let videos;
+        let video;
         if (this._videoQuality === 'auto') {
-          videos = availableVideos.slice(0, 1);
+          video = availableVideos[0];
         } else {
           let reg = new RegExp(`-${this._videoQuality}$`);
-          videos = [availableVideos.find(v => reg.test(v)) ?? availableVideos[0]];
+          video = availableVideos.find(v => reg.test(v)) ?? availableVideos[0];
         }
 
         const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
@@ -308,7 +308,7 @@ const VideoSessionWorker = (() => {
             'X-Access-Right-Key': this._domandInfo.accessRightKey,
           },
           credentials: 'include',
-          body: JSON.stringify({outputs: [Array.prototype.concat(videos, audios)]})
+          body: JSON.stringify({outputs: [[video, audio]]})
         }).then(res => res.json());
         if (result.meta.status == null || result.meta.status >= 300) {
           throw new Error('cannot create domand session', result)
@@ -324,6 +324,8 @@ const VideoSessionWorker = (() => {
         this._videoSessionInfo = {
           type: 'domand',
           url: contentUrl,
+          videoFormat: video,
+          audioFormat: audio,
           lastResponse: result
         };
         console.timeEnd('create Domand session');
@@ -659,6 +661,7 @@ const VideoSessionWorker = (() => {
       }
       // console.log('getState', sessionId, current[SESSION_ID]);
       return {
+        isDomand: current.isDomand,
         isDmc: current.isDmc,
         isDeleted: current.isDeleted,
         isAbnormallyClosed: current.isAbnormallyClosed,
