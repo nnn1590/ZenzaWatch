@@ -123,7 +123,7 @@ class VideoWatchOptions {
     return this._options.reloadCount > 0;
   }
   get videoServerType() {
-    return this._options.videoServerType;
+    return this._options.videoServerType ?? this._config.getValue('videoServerType');
   }
   get isAutoZenTubeDisabled() {
     return !!this._options.isAutoZenTubeDisabled;
