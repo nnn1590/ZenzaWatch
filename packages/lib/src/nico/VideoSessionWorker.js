@@ -61,25 +61,16 @@ const VideoSessionWorker = (() => {
       toString() {
         let dmcInfo = this._dmcInfo;
 
-        let videos = [];
-        let availableVideos =
-            dmcInfo.videos.filter(v => v.isAvailable)
-                .sort((a, b) => b.levelIndex - a.levelIndex);
-        let reg = VIDEO_QUALITY[this._videoQuality] || VIDEO_QUALITY.auto;
+        const availableVideos = dmcInfo.availableVideoIds;
+        const reg = VIDEO_QUALITY[this._videoQuality] || VIDEO_QUALITY.auto;
+        let videos;
         if (reg === VIDEO_QUALITY.auto) {
-          videos = availableVideos.map(v => v.id);
+          videos = availableVideos;
         } else {
-          availableVideos.forEach(format => {
-            if (reg.test(format.id)) {
-              videos.push(format.id);
-            }
-          });
-          if (videos.length < 1) {
-            videos[0] = availableVideos[0].id;
-          }
+          videos = [availableVideos.find(v => reg.test(v)) ?? availableVideos[0]];
         }
 
-        let audios = [dmcInfo.audios[0]];
+        const audios = [dmcInfo.availableAudioIds[0]];
 
         let contentSrcIdSets =
           (this._useHLS && reg === VIDEO_QUALITY.auto) ?
@@ -295,8 +286,16 @@ const VideoSessionWorker = (() => {
         if (!this._useHLS) {
           throw new Error('HLSに未対応');
         }
-        const video = this._domandInfo.videos[0].id;
-        const audio = this._domandInfo.audios[0].id;
+        const audios = [this._domandInfo.availableAudioIds[0]];
+        const availableVideos = this._domandInfo.availableVideoIds;
+        let videos;
+        if (this._videoQuality === 'auto') {
+          videos = availableVideos;
+        } else {
+          let reg = new RegExp(`-${this._videoQuality}$`);
+          videos = [availableVideos.find(v => reg.test(v)) ?? availableVideos[0]];
+        }
+
         const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
         const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/hls?${query.toString()}`;
         const result = await util.fetch(url, {
@@ -309,7 +308,7 @@ const VideoSessionWorker = (() => {
             'X-Access-Right-Key': this._domandInfo.accessRightKey,
           },
           credentials: 'include',
-          body: JSON.stringify({outputs: [[video, audio]]})
+          body: JSON.stringify({outputs: [Array.prototype.concat(videos, audios)]})
         }).then(res => res.json());
         if (result.meta.status == null || result.meta.status >= 300) {
           throw new Error('cannot create domand session', result)

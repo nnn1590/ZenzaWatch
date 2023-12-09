@@ -3,8 +3,67 @@ import {PromiseHandler} from '../packages/lib/src/Emitter';
 
 //===BEGIN===
 //
-class DmcInfo {
+class JSONable {
+  toJSON() {
+    const data = Object.create(null);
+    const proto = Object.getPrototypeOf(this);
+
+    for (const prop of Object.getOwnPropertyNames(proto)) {
+      const desc = Object.getOwnPropertyDescriptor(proto, prop);
+      if (typeof desc?.get !== 'function') continue;
+
+      const value = data[prop] = this[prop];
+      if (value == null || typeof value.toJSON !== 'function') continue;
+
+      data[prop] = value.toJSON();
+    }
+
+    return data;
+  }
+}
+
+class DomandInfo extends JSONable {
   constructor(rawData) {
+    super();
+    this._rawData = rawData;
+  }
+
+  get accessRightKey() {
+    return this._rawData.accessRightKey || '';
+  }
+
+  get audios() {
+    return this._rawData.audios.toSorted((a, b) => b.qualityLevel > a.qualityLevel);
+  }
+
+  get availableAudios() {
+    return this.audios.filter(a => a.isAvailable);
+  }
+
+  get availableAudioIds() {
+    return this.availableAudios.map(a => a.id);
+  }
+
+  get videos() {
+    return this._rawData.videos.toSorted((a, b) => b.qualityLevel > a.qualityLevel);
+  }
+
+  get availableVideos() {
+    return this.videos.filter(v => v.isAvailable);
+  }
+
+  get availableVideoIds() {
+    return this.availableVideos.map(v => v.id);
+  }
+
+  get isStoryboardAvailable() {
+    return this._rawData.isStoryboardAvailable;
+  }
+}
+
+class DmcInfo extends JSONable {
+  constructor(rawData) {
+    super();
     this._rawData = rawData;
     this._session = rawData.movie.session;
   }
@@ -18,15 +77,27 @@ class DmcInfo {
   }
 
   get audios() {
-    return this._session.audios;
+    return this._rawData.movie.audios.toSorted((a, b) => b.metadata.levelIndex > a.metadata.levelIndex);
+  }
+
+  get availableAudios() {
+    return this.audios.filter(a => a.isAvailable);
+  }
+
+  get availableAudioIds() {
+    return this.availableAudios.map(a => a.id);
   }
 
   get videos() {
-    return this._rawData.movie.videos;
+    return this._rawData.movie.videos.toSorted((a, b) => b.metadata.levelIndex > a.metadata.levelIndex);
   }
 
-  get quality() {
-    return this._rawData.movie.quality;
+  get availableVideos() {
+    return this.videos.filter(v => v.isAvailable);
+  }
+
+  get availableVideoIds() {
+    return this.availableVideos.map(v => v.id);
   }
 
   get signature() {
@@ -108,26 +179,6 @@ class DmcInfo {
   get encryption() {
     return this._rawData.encryption || null;
   }
-
-  toJSON() {
-    const data = Object.create(null);
-    const proto = Object.getPrototypeOf(this);
-
-    for (const prop of Object.getOwnPropertyNames(proto)) {
-      const desc = Object.getOwnPropertyDescriptor(proto, prop);
-      if (typeof desc?.get !== 'function') continue;
-
-      data[prop] = this[prop];
-      if (data[prop] == null) continue;
-
-      const propDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(data[prop]), 'toJSON')
-      if (typeof propDesc?.value !== 'function') continue;
-
-      data[prop] = data[prop].toJSON();
-    }
-
-    return data;
-  }
 }
 
 class VideoFilter {
@@ -187,8 +238,9 @@ class VideoFilter {
   }
 }
 
-class VideoInfoModel {
+class VideoInfoModel extends JSONable {
   constructor(videoInfoData, localCacheData = {}) {
+    super();
     this._update(videoInfoData, localCacheData);
     this._currentVideoPromise = null;
   }
@@ -207,7 +259,7 @@ class VideoInfoModel {
     this._ngFilters = info.ngFilters;
     this._msgInfo = info.msgInfo;
     this._dmcInfo = (info.dmcInfo && info.dmcInfo.movie.session) ? new DmcInfo(info.dmcInfo) : null;
-    this._domandInfo = info.domandInfo;
+    this._domandInfo = info.domandInfo ? new DomandInfo(info.domandInfo) : null;
     this._relatedVideo = info.playlist; // playlistという名前だが実質は関連動画
     this._playlistToken = info.playlistToken;
     this._watchAuthKey = info.watchAuthKey;
@@ -568,26 +620,6 @@ class VideoInfoModel {
 
     // それ以外はdmc
     return 'dmc';
-  }
-
-  toJSON() {
-    const data = Object.create(null);
-    const proto = Object.getPrototypeOf(this);
-
-    for (const prop of Object.getOwnPropertyNames(proto)) {
-      const desc = Object.getOwnPropertyDescriptor(proto, prop);
-      if (typeof desc?.get !== 'function') continue;
-
-      data[prop] = this[prop];
-      if (data[prop] == null) continue;
-
-      const propDesc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(data[prop]), 'toJSON')
-      if (typeof propDesc?.value !== 'function') continue;
-
-      data[prop] = data[prop].toJSON();
-    }
-
-    return data;
   }
 }
 
