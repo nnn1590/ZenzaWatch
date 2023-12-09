@@ -22,7 +22,7 @@
 // @exclude        *://dic.nicovideo.jp/p/*
 // @grant          none
 // @author         segabito macmoto
-// @version        0.0.22-kphrx-patch.2
+// @version        0.0.22-kphrx-patch.3
 // @noframes
 // @require        https://cdn.jsdelivr.net/npm/hls.js@latest
 // @run-at         document-start
@@ -634,6 +634,14 @@ const workerUtil = (() => {
 
       // 以下、 hls.js 関連
 
+      // Domand動画にはcookiesが必要
+      xhrSetup: (xhr, url) => {
+        xhr.withCredentials = true;
+        xhr.ontimeout = () => {
+          window.console.log('xhr timeout', xhr, url);
+        };
+      },
+
       // なんとなくわかる物
       debug: false, // used by logger
       autoStartLoad: true, // used by stream-controller
@@ -1244,14 +1252,6 @@ const workerUtil = (() => {
       let FragmentLoaderClass;
       const createFragmentLoader = (Hls) => {
 
-        const xhrSetup = (xhr, url) => {
-          //xhr.timeout = config.timeout + 1000;
-          //xhr.setRequestHeader('Cache-Control', 'force-cache');
-          xhr.ontimeout = () => {
-            window.console.log('xhr timeout', xhr, url);
-          };
-          xhr.open('GET', url, true);
-        };
         const frag2hash = fragment => {
           const url = fragment.url;
           const levels = this.levels;
@@ -1297,7 +1297,7 @@ const workerUtil = (() => {
           const params = {
             method: 'GET',
             // mode: 'cors',
-            // credentials: 'same-origin',
+            credentials: 'include',
             cache: 'force-cache',
             signal: abc.signal,
           };
@@ -1489,233 +1489,10 @@ const workerUtil = (() => {
         }
 
 
-        class FetchLoader extends Hls.DefaultConfig.loader {
-          constructor(config) {
-            super(config);
-            this.config = config;
-            this.onTimeout = this.onTimeout.bind(this);
-          }
-
-          abort () {
-            if (!this.stats.success) {
-              this.stats.aborted = true;
-            }
-            if (this.abortController) {
-              this.abortController.abort();
-            }
-            this.abortController = null;
-            if (this.timeoutTimer) {
-              this.timeoutTimer.cancel();
-            }
-            this.timeoutTimer = null;
-          }
-
-          destroy () {
-            this.abort();
-          }
-
-          async load(context, config, callbacks) {
-            if (!context.frag || !/\.ts/.test(context.url)) {
-              window.console.info('unknown context', context.url, context);
-              return super.load(context, config, callbacks);
-            }
-            this.context = context;
-            this.config = config;
-            this.callbacks = callbacks;
-            this.stats = { loader: 'fetch', trequest: performance.now(), retry: 0, loaded: 0 };
-            this.retryDelay = config.retryDelay;
-
-
-            this._load(context, config, callbacks);
-          }
-
-          async _load(context, config, callbacks) {
-            const frag = context.frag;
-            const level = frag.level;
-            const {hash, videoId} = frag2hash(frag);
-            const {onSuccess, onError} = callbacks;
-            if (!context.rangeStart && !context.rangeEnd) {
-
-              callbacks.onSuccess = async (resp, stats, context, details = null) => {
-                const status = details instanceof XMLHttpRequest ? details.status : 200;
-
-                if (status === 206
-               //     buffer.byteLength !== contentLength
-                ) {
-                  console.warn('CONTENT LENGTH MISMATCH!', resp.data.length, frag.loaded);//, contentLength);
-                } else if (Config.get('enable_db_cache') && !window.Prototype) {
-                  const buffer = resp.data.slice();
-                  frag.hasCache = true;
-                  Storage.save({
-                    hash,
-                    videoId,
-                    meta: {
-                      contentLength: context.frag.loaded,
-                      sn: context.frag.sn,
-                      resp: {
-                        url: resp.url
-                      },
-                      level,
-                      total: context.frag.loaded,
-                      stats,
-                      url: context.url
-                    }
-                  }, buffer);
-                }
-
-                onSuccess(resp, stats, context, details);
-              };
-
-              // prototype.js のあるページでは動かないどころかブラクラ化する
-              if (Config.get('enable_db_cache')) {
-                // console.log('***load', hash, Config.get('enable_db_cache'),window.Prototype);
-                const [meta, buffer] = await Storage.load({hash});
-                // console.log('cache?', !!meta, hash);
-                if (meta) {
-                  return callbacks.onSuccess(
-                    {url: meta.url, data: buffer }, meta.stats, context, null);
-                }
-              }
-            }
-
-            callbacks.onError = (resp /* = {code, text} */, context, xhr) => {
-              if (this._isAborted) {
-                console.warn('error after aborted', resp, context);
-                onError({code: 0, text: `error after aborted ${resp.code}: ${resp.text}`}, context, xhr);
-                return;
-              }
-              onError(resp, context, xhr);
-            };
-
-            this.loadInternal(context, config, callbacks);
-          }
-
-          async loadInternal() {
-            const {stats, context, config, callbacks} = this;
-            let url = context.url;
-
-            const headers = {};
-
-            if (context.rangeEnd) {
-              headers['Range'] = `bytes=${context.rangeStart}-${context.rangeEnd - 1}`;
-            }
-
-            const abc = this.abortController = new AbortController();
-            const params = {
-              // method: 'GET',
-              // mode: 'cors',
-              // credentials: 'same-origin',
-              cache: 'force-cache',
-              signal: abc.signal,
-              headers: new Headers(headers)
-            };
-
-            const debounceTimeout = debounce(this.onTimeout, this.config.timeout);
-            this.timeoutTimer = debounceTimeout;
-            // const onProgress = this.onProgress.bind(this);
-
-            const request = new Request(url, params);
-            let data;
-
-            try {
-              debounceTimeout();
-
-              let res;
-              for (let i = 0; i < Math.min(config.maxRetry, 3); i++) {
-                res = await fetch(request, params);
-                if (res.ok) {
-                  break;
-                }
-                const status = res.status;
-                console.warn('fetch fail', i, res, url, request, params);
-                if (status >= 400 && status < 499) {
-                  break;
-                }
-                await new Promise(res => setTimeout(res, this.retryDelay));
-              }
-
-              if (!res.ok) {
-                throw new Error('fetch, bad network response. ' + res);
-              }
-
-              debounceTimeout();
-
-              url = res.url;
-              stats.total = parseInt(res.headers.get('Content-Length'), 10);
-              stats.loaded = 0;
-              stats.tfirst = Math.max(stats.trequest, performance.now());
-
-              if ((context.responseType || 'arrayBuffer').toLowerCase() !== 'arraybuffer') {
-                data = await res.text();
-              } else {
-                data = await res.arrayBuffer();
-                // data = await new Response(new ReadableStream({
-                //     start(controller) {
-                //       const reader = res.body.getReader();
-                //       let result, value, done;
-                //       const read = async () => {
-                //         do {
-                //           result = await reader.read();
-                //           // let {value, done} = result;
-                //           debounceTimeout();
-
-                //           const value = result.value;
-                //           stats.loaded += value.byteLength;
-                //           controller.enqueue(value);
-                //           onProgress(value);
-                //         } while (!result.done);
-                //         controller.close();
-                //       };
-                //       read();
-                //     }
-                //   })
-                // ).arrayBuffer();
-              }
-            } catch (e) {
-              callbacks.onError({ text: e.message }, context);
-            }
-
-            debounceTimeout.cancel();
-            this.timeoutTimer = null;
-            this.abortController = null;
-
-            if (data) {
-              const len = typeof data === 'string' ? data.length : data.byteLength;
-              Object.assign(stats, {
-                success: true,
-                tload: Math.max(stats.tfirst, performance.now()),
-                loaded: len,
-                total: len
-              });
-              callbacks.onSuccess({url, data}, stats, context);
-            } else {
-              this.abort();
-            }
-          }
-
-          onTimeout() {
-            console.warn('request timeout', this.stats, this.context);
-            this.abort();
-            this.callbacks.onTimeout(this.stats, this.context, null);
-          }
-
-          /**
-           * @param {ArrayBuffer} data
-           */
-          onProgress(data) {
-            const onProgress = this.callbacks.onProgress;
-            if (onProgress) {
-              onProgress(this.stats, this.context, data, null);
-            }
-          }
-
-        }
-
-
         FragmentLoaderClass = FragmentLoader;
         FragmentLoaderClass.frag2hash = frag2hash;
         FragmentLoaderClass.hasCache = hasCache;
-        FragmentLoaderClass.preloadFragment = FragmentLoaderClass;
+        FragmentLoaderClass.preloadFragment = preloadFragment;
         return FragmentLoaderClass;
       };
       /** @param  */
@@ -3196,7 +2973,7 @@ const workerUtil = (() => {
           //return null;
           // 静止画キャプチャ用なのにどんどんバッファするのは無駄なので抑える
           video.setAttribute('data-usecase', 'capture');
-          video.hlsConfig = {
+          video.hlsConfig = Object.assign(hlsConfig, {
             autoStartLoad: false,
             // maxBufferSize: 0,
             // maxBufferLength: 5,
@@ -3208,7 +2985,7 @@ const workerUtil = (() => {
             levelLoadingMaxRetry: 1,
             abrEwmaDefaultEstimate: ZenzaWatch.debug.hlsConfig.abrEwmaDefaultEstimate,
             startLevel: lastLevel
-          };
+          });
           video.addEventListener('init-hls-js', ({detail: {hls}}) => {
             hls.autoLevelCapping = lastLevel;
           });

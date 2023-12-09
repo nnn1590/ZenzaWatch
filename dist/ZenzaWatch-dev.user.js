@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.32
+// @version        2.6.3-fix-playlist.33
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.32';
+    var VER = '2.6.3-fix-playlist.33';
     const ENV = 'DEV';
 
 
@@ -2919,19 +2919,6 @@ const netUtil = {
 };
 Object.assign(util, netUtil);
 const VideoCaptureUtil = (() => {
-	const crossDomainGates = {};
-	const initializeByServer = (server, fileId) => {
-		if (crossDomainGates[server]) {
-			return crossDomainGates[server];
-		}
-		const baseUrl = `https://${server}/smile?i=${fileId}`;
-		crossDomainGates[server] = new CrossDomainGate({
-			baseUrl,
-			origin: `https://${server}/`,
-			type: `storyboard${PRODUCT}_${server.split('.')[0].replace(/-/g, '_')}`
-		});
-		return crossDomainGates[server];
-	};
 	const _toCanvas = (v, width, height) => {
 		const canvas = document.createElement('canvas');
 		const context = canvas.getContext('2d');
@@ -2941,7 +2928,7 @@ const VideoCaptureUtil = (() => {
 		return canvas;
 	};
 	const isCORSReadySrc = src => {
-		if (src.indexOf('dmc.nico') >= 0) {
+		if (src.indexOf('delivery.domand.nicovideo.jp') >= 0 || src.indexOf('dmc.nico') >= 0) {
 			return true;
 		}
 		return false;
@@ -2956,28 +2943,7 @@ const VideoCaptureUtil = (() => {
 		if (isCORSReadySrc(src)) {
 			return Promise.resolve({canvas: _toCanvas(video, video.videoWidth, video.videoHeight)});
 		}
-		return new Promise(async (resolve, reject) => {
-			if (!/\?(.)=(\d+)\.(\d+)/.test(search)) {
-				return reject({status: 'fail', message: 'invalid url', url: src});
-			}
-			const fileId = RegExp.$2;
-			const gate = initializeByServer(server, fileId);
-			const dataUrl = await gate.videoCapture(src, sec);
-			const bin = atob(dataUrl.split(',')[1]);
-			const buf = new Uint8Array(bin.length);
-			for (let i = 0, len = buf.length; i < len; i++) {
-				buf[i] = bin.charCodeAt(i);
-			}
-			const blob = new Blob([buf.buffer], {type: 'image/png'});
-			const url = URL.createObjectURL(blob);
-			console.info('createObjectUrl', url.length);
-			const img = new Image();
-			img.src = url;
-			img.decode()
-				.then(() => resolve({canvas: _toCanvas(img, video.videoWidth, video.videoHeight)}))
-				.catch(err => reject(err))
-				.finally(() => window.setTimeout(() => URL.revokeObjectURL(url), 10000));
-		});
+		return Promise.reject({status: 'fail', message: 'not supported url', url: src})
 	};
 	const htmlToSvg = (html, width = 682, height = 384) => {
 		const data =
@@ -6315,6 +6281,7 @@ const VideoInfoLoader = (function () {
 			channel, // nullable
 			client: {
 				watchId,
+				watchTrackId,
 			},
 			comment: {
 				keys: {
@@ -6342,6 +6309,7 @@ const VideoInfoLoader = (function () {
 			},
 			media: {
 				delivery: dmcInfo, // nullable
+				domand: domandInfo, // nullable
 			},
 			owner, // nullable
 			payment: {
@@ -6359,10 +6327,6 @@ const VideoInfoLoader = (function () {
 				items: tags,
 			},
 			video: {
-				smileInfo: flvInfo = {}, // smileInfoがない
-				flvInfo: {
-					url: videoUrl = '',
-				} = flvInfo,
 				count: {
 					comment: commentCount,
 					like: likeCount,
@@ -6435,7 +6399,9 @@ const VideoInfoLoader = (function () {
 			frontendId,
 			frontendVersion
 		};
-		const isPlayable = !!dmcInfo?.movie.session;
+		const isDmc = dmcInfo?.movie.session != null;
+		const isDomand = domandInfo != null;
+		const isPlayable = isDmc || isDomand;
 		cacheStorage.setItem('csrfToken', csrfToken, 30 * 60 * 1000);
 		const playlist = {playlist: []};
 		const tagList = tags.map(tag => {
@@ -6506,39 +6472,28 @@ const VideoInfoLoader = (function () {
 			},
 			viewerInfo,
 			channelInfo,
-			uploaderInfo
+			uploaderInfo,
+			clientTrackId: watchTrackId,
 		};
-		let ngFilters = Array.prototype.concat(channelNg, ownerNg);
-		if (ngFilters.length) {
-			const ngtmp = [];
-			ngFilters.forEach(ng => {
-				if (!ng.source || !ng.destination) { return; }
-				ngtmp.push(
-					encodeURIComponent(ng.source) + '=' + encodeURIComponent(ng.destination));
-			});
-			flvInfo.ng_up = ngtmp.join('&');
-		}
+		const ngFilters = Array.prototype.concat(channelNg, ownerNg);
 		const result = {
 			_format: 'html5watchApi',
 			_data,
 			watchApiData,
-			flvInfo,
+			domandInfo,
 			dmcInfo,
 			msgInfo,
 			playlist,
-			isDmcOnly: true,
 			isPlayable,
-			isMp4: false,
-			isFlv: false,
-			isSwf: false,
-			isEco: false,
-			isDmc: isPlayable,
+			isDomand,
+			isDmc,
 			thumbnailUrl,
 			csrfToken,
 			watchAuthKey,
 			playlistToken,
 			series,
 			genreKey,
+			ngFilters,
 			isMemberFree,
 			isNeedPayment,
 			isPremiumFree,
@@ -7525,8 +7480,53 @@ const NicoVideoApi = (() => {
 		bridgeDb(...args)    { return init().bridgeDb(...args); }
 	};
 })();
-class DmcInfo {
+class JSONable {
+	toJSON() {
+		const data = Object.create(null);
+		const proto = Object.getPrototypeOf(this);
+		for (const prop of Object.getOwnPropertyNames(proto)) {
+			const desc = Object.getOwnPropertyDescriptor(proto, prop);
+			if (typeof desc?.get !== 'function') continue;
+			const value = data[prop] = this[prop];
+			if (value == null || typeof value.toJSON !== 'function') continue;
+			data[prop] = value.toJSON();
+		}
+		return data;
+	}
+}
+class DomandInfo extends JSONable {
 	constructor(rawData) {
+		super();
+		this._rawData = rawData;
+	}
+	get accessRightKey() {
+		return this._rawData.accessRightKey || '';
+	}
+	get audios() {
+		return this._rawData.audios.toSorted((a, b) => b.qualityLevel > a.qualityLevel);
+	}
+	get availableAudios() {
+		return this.audios.filter(a => a.isAvailable);
+	}
+	get availableAudioIds() {
+		return this.availableAudios.map(a => a.id);
+	}
+	get videos() {
+		return this._rawData.videos.toSorted((a, b) => b.qualityLevel > a.qualityLevel);
+	}
+	get availableVideos() {
+		return this.videos.filter(v => v.isAvailable);
+	}
+	get availableVideoIds() {
+		return this.availableVideos.map(v => v.id);
+	}
+	get isStoryboardAvailable() {
+		return this._rawData.isStoryboardAvailable;
+	}
+}
+class DmcInfo extends JSONable {
+	constructor(rawData) {
+		super();
 		this._rawData = rawData;
 		this._session = rawData.movie.session;
 	}
@@ -7537,13 +7537,22 @@ class DmcInfo {
 		return this._session.urls;
 	}
 	get audios() {
-		return this._session.audios;
+		return this._rawData.movie.audios.toSorted((a, b) => b.metadata.levelIndex > a.metadata.levelIndex);
+	}
+	get availableAudios() {
+		return this.audios.filter(a => a.isAvailable);
+	}
+	get availableAudioIds() {
+		return this.availableAudios.map(a => a.id);
 	}
 	get videos() {
-		return this._rawData.movie.videos;
+		return this._rawData.movie.videos.toSorted((a, b) => b.metadata.levelIndex > a.metadata.levelIndex);
 	}
-	get quality() {
-		return this._rawData.movie.quality;
+	get availableVideos() {
+		return this.videos.filter(v => v.isAvailable);
+	}
+	get availableVideoIds() {
+		return this.availableVideos.map(v => v.id);
 	}
 	get signature() {
 		return this._session.signature;
@@ -7605,17 +7614,6 @@ class DmcInfo {
 	get encryption() {
 		return this._rawData.encryption || null;
 	}
-	getData() {
-		const data = {};
-		for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
-			if (typeof this[prop] === 'function') { continue; }
-			data[prop] = this[prop];
-		}
-		return data;
-	}
-	toJSON() {
-		return JSON.stringify(this.getData());
-	}
 }
 class VideoFilter {
 	constructor(ngOwner, ngTag) {
@@ -7665,8 +7663,9 @@ class VideoFilter {
 		return isNg;
 	}
 }
-class VideoInfoModel {
+class VideoInfoModel extends JSONable {
 	constructor(videoInfoData, localCacheData = {}) {
+		super();
 		this._update(videoInfoData, localCacheData);
 		this._currentVideoPromise = null;
 	}
@@ -7680,9 +7679,10 @@ class VideoInfoModel {
 		this._watchApiData = info.watchApiData;
 		this._videoDetail = info.watchApiData.videoDetail;
 		this._viewerInfo = info.viewerInfo;               // 閲覧者(＝おまいら)の情報
-		this._flvInfo = info.flvInfo;
+		this._ngFilters = info.ngFilters;
 		this._msgInfo = info.msgInfo;
 		this._dmcInfo = (info.dmcInfo && info.dmcInfo.movie.session) ? new DmcInfo(info.dmcInfo) : null;
+		this._domandInfo = info.domandInfo ? new DomandInfo(info.domandInfo) : null;
 		this._relatedVideo = info.playlist; // playlistという名前だが実質は関連動画
 		this._playlistToken = info.playlistToken;
 		this._watchAuthKey = info.watchAuthKey;
@@ -7713,16 +7713,6 @@ class VideoInfoModel {
 	get largeThumbnnail() {
 		return this._videoDetail.largeThumbnnail;
 	}
-	get videoUrl() {
-		return (this._flvInfo.url || '');//.replace(/^http:/, '');
-	}
-	get storyboardUrl() {
-		let url = this._flvInfo.url;
-		if (!url || !url.match(/smile\?m=/) || url.match(/^rtmp/)) {
-			return null;
-		}
-		return url;
-	}
 	getCurrentVideo() {
 		if (this._currentVideoPromise) {
 			return this._currentVideoPromise;
@@ -7732,9 +7722,6 @@ class VideoInfoModel {
 	setCurrentVideo(v) {
 		this._currentVideo = v;
 		this._currentVideoPromise && this._currentVideoPromise.resolve(v);
-	}
-	get isEconomy() {
-		return this.videoUrl.match(/low$/) ? true : false;
 	}
 	get tagList() {
 		return this._videoDetail.tagList;
@@ -7801,11 +7788,24 @@ class VideoInfoModel {
 	get hasParentVideo() {
 		return !!(this._videoDetail.commons_tree_exists);
 	}
-	get isDmc() {
-		return this.isDmcOnly || (this._rawData.isDmc);
+	get isHLSRequired() {
+		if (this.isDmcAvailable) {
+			return this.dmcInfo.isHLSRequired
+		} else {
+			return this.isDomandAvailable;
+		}
+	}
+	get actionTrackId() {
+		return this._watchApiData.clientTrackId;
+	}
+	get isDomandAvailable() {
+		return this._rawData.isDomand;
 	}
 	get isDmcAvailable() {
 		return this._rawData.isDmc;
+	}
+	get domandInfo() {
+		return this._domandInfo;
 	}
 	get dmcInfo() {
 		return this._dmcInfo;
@@ -7813,8 +7813,17 @@ class VideoInfoModel {
 	get msgInfo() {
 		return this._msgInfo;
 	}
+	get isDomandOnly() {
+		return this.isDomandAvailable && !this.isDmcAvailable;
+	}
 	get isDmcOnly() {
-		return !!this._rawData.isDmcOnly || !this.videoUrl;
+		return this.isDmcAvailable && !this.isDomandAvailable;
+	}
+	get hasDomandStoryboard() {
+		return this._domandInfo && this._domandInfo.isStoryboardAvailable;
+	}
+	get domandStoryboardInfo() {
+		return null;
 	}
 	get hasDmcStoryboard() {
 		return this._dmcInfo && this._dmcInfo.hasStoryboard;
@@ -7876,12 +7885,12 @@ class VideoInfoModel {
 		return this._relatedVideo.playlist || [];
 	}
 	get replacementWords() {
-		if (!this._flvInfo.ng_up || this._flvInfo.ng_up === '') {
-			return null;
-		}
-		return textUtil.parseQuery(
-			this._flvInfo.ng_up || ''
-		);
+		return this._ngFilters.reduce((acc, ng) => {
+			if (ng.source != null && ng.destination != null) {
+				acc[ng.source] = ng.destination;
+			}
+			return acc;
+		}, Object.create({}))
 	}
 	get playlistToken() {
 		return this._playlistToken;
@@ -7922,18 +7931,8 @@ class VideoInfoModel {
 		return this._rawData.csrfToken || '';
 	}
 	get extension() {
-		if (this.isDmc) {
+		if (this.isDomandAvailable || this.isDmcAvailable) {
 			return 'mp4';
-		}
-		const url = this.videoUrl;
-		if (url.match(/smile\?m=/)) {
-			return 'mp4';
-		}
-		if (url.match(/smile\?v=/)) {
-			return 'flv';
-		}
-		if (url.match(/smile\?s=/)) {
-			return 'swf';
 		}
 		return 'unknown';
 	}
@@ -7941,53 +7940,28 @@ class VideoInfoModel {
 		return this._rawData.community || null;
 	}
 	get maybeBetterQualityServerType() {
+		if (this.isDomandOnly) {
+			return 'domand';
+		}
 		if (this.isDmcOnly) {
 			return 'dmc';
 		}
-		if (this.isEconomy) {
+		if (!this.isDmcAvailable) {
+			return 'domand';
+		}
+		if (!this.isDomandAvailable) {
 			return 'dmc';
 		}
-		let dmcInfo = this.dmcInfo;
-		if (!dmcInfo) {
-			return 'smile';
-		}
-		if (/smile\?[sv]=/.test(this.videoUrl)) {
-			return 'dmc';
-		}
-		let smileWidth = this.width;
-		let smileHeight = this.height;
-		let dmcVideos = dmcInfo.videos;
-		let importVersion = dmcInfo.importVersion;
-		if (isNaN(smileWidth) || isNaN(smileHeight)) {
-			return 'dmc';
-		}
-		if (smileWidth > 1280 || smileHeight > 720) {
-			return 'smile';
-		}
-		if (smileHeight < 360) {
-			return 'smile';
-		}
-		const highestDmc = Math.max(...dmcVideos.map(v => {
-			return (/_([0-9]+)p$/.exec(v)[1] || '') * 1;
+		const highestDomand = Math.max(...this.domandInfo.videos.map(v => {
+			return v.height;
 		}));
-		if (highestDmc >= 720) {
-			return 'dmc';
-		}
-		if (smileHeight === 486 || smileHeight === 384) {
-			return 'smile';
-		}
-		if (highestDmc >= smileHeight) {
-			return 'dmc';
+		const highestDmc = Math.max(...this.dmcInfo.videos.map(v => {
+			return v.metadata.resolution.height;
+		}));
+		if (highestDomand >= highestDmc) {
+			return 'domand';
 		}
 		return 'dmc';
-	}
-	getData() {
-		const data = {};
-		for (const prop of Object.getOwnPropertyNames(this.constructor.prototype)) {
-			if (typeof this[prop] === 'function') { continue; }
-			data[prop] = this[prop];
-		}
-		return data;
 	}
 }
 const {NicoSearchApiV2Query, NicoSearchApiV2Loader} =
@@ -8710,103 +8684,18 @@ MediaTimeline.get = name => MediaTimeline.register(name);
 WatchInfoCacheDb.api(NicoVideoApi);
 StoryboardCacheDb.api(NicoVideoApi);
 
-const SmileStoryboardInfoLoader = (()=> {
-	let parseStoryboard = ($storyboard, url) => {
-		let id = $storyboard.attr('id') || '1';
-		return {
-			id,
-			url: url.replace('sb=1', `sb=${id}`),
-			thumbnail: {
-				width: $storyboard.find('thumbnail_width').text(),
-				height: $storyboard.find('thumbnail_height').text(),
-				number: $storyboard.find('thumbnail_number').text(),
-				interval: $storyboard.find('thumbnail_interval').text()
-			},
-			board: {
-				rows: $storyboard.find('board_rows').text(),
-				cols: $storyboard.find('board_cols').text(),
-				number: $storyboard.find('board_number').text()
-			}
-		};
-	};
-	let parseXml = (xml, url) => {
-		let $xml = util.$.html(xml), $storyboard = $xml.find('storyboard');
-		if ($storyboard.length < 1) {
-			return null;
-		}
-		let info = {
-			format: 'smile',
-			status: 'ok',
-			message: '成功',
-			url,
-			movieId: $xml.find('movie').attr('id'),
-			duration: $xml.find('duration').text(),
-			storyboard: []
-		};
-		for (let i = 0, len = $storyboard.length; i < len; i++) {
-			let sbInfo = parseStoryboard(util.$($storyboard[i]), url);
-			info.storyboard.push(sbInfo);
-		}
-		info.storyboard.sort((a, b) => {
-			let idA = parseInt(a.id.substr(1), 10), idB = parseInt(b.id.substr(1), 10);
-			return (idA < idB) ? 1 : -1;
-		});
-		return info;
-	};
-	let load = videoFileUrl => {
-		let a = document.createElement('a');
-		a.href = videoFileUrl;
-		let server = a.host;
-		let search = a.search;
-		if (!/\?(.)=(\d+)\.(\d+)/.test(search)) {
-			return Promise.reject({status: 'fail', message: 'invalid url', url: videoFileUrl});
-		}
-		let fileType = RegExp.$1;
-		let fileId = RegExp.$2;
-		let key = RegExp.$3;
-		if (fileType !== 'm') {
-			return Promise.reject({status: 'fail', message: 'unknown file type', url: videoFileUrl});
-		}
-		return new Promise((resolve, reject) => {
-			let url = '//' + server + '/smile?m=' + fileId + '.' + key + '&sb=1';
-			util.fetch(url, {credentials: 'include'})
-				.then(res => res.text())
-				.then(result => {
-					const info = parseXml(result, url);
-					if (info) {
-						resolve(info);
-					} else {
-						reject({
-							status: 'fail',
-							message: 'storyboard not exist (1)',
-							result: result,
-							url: url
-						});
-					}
-				}).catch(err => {
-				reject({
-					status: 'fail',
-					message: 'storyboard not exist (2)',
-					result: err,
-					url: url
-				});
-			});
-		});
-	};
-	return {load};
-})();
 const StoryboardInfoLoader = {
 	load: videoInfo => {
-		if (!videoInfo.hasDmcStoryboard) {
-			const url = videoInfo.storyboardUrl;
-			return url ?
-				StoryboardInfoLoader.load(url) :
-				Promise.reject('smile storyboard api not exist');
+		if (videoInfo.hasDomandStoryboard) {
+			return Promise.reject('currently, not supported domand storyboard');
 		}
-		const watchId = videoInfo.watchId;
-		const info = videoInfo.dmcStoryboardInfo;
-		const duration = videoInfo.duration;
-		return VideoSessionWorker.storyboard(watchId, info, duration);
+		if (videoInfo.hasDmcStoryboard) {
+			const watchId = videoInfo.watchId;
+			const info = videoInfo.dmcStoryboardInfo;
+			const duration = videoInfo.duration;
+			return VideoSessionWorker.storyboard(watchId, info, duration);
+		}
+		return Promise.reject('smile storyboard api not exist');
 	}
 };
 // ZenzaWatch.api.DmcStoryboardInfoLoader = DmcStoryboardInfoLoader;
@@ -12367,11 +12256,10 @@ class Storyboard extends Emitter {
 			const config = this._playerConfig;
 			const $button = this._$videoServerTypeMenu;
 			const $select  = this._$videoServerTypeSelectMenu;
-			const $current = $select.find('.currentVideoQuality');
-			const updateSmileVideoQuality = value => {
-				const $dq = $select.find('.smileVideoQuality');
+			const updateDomandVideoQuality = value => {
+				const $dq = $select.find('.domandVideoQuality');
 				$dq.removeClass('selected');
-				$select.find('.select-smile-' + (value === 'eco' ? 'economy' : 'default')).addClass('selected');
+				$select.find('.select-domand-' + value).addClass('selected');
 			};
 			const updateDmcVideoQuality = value => {
 				const $dq = $select.find('.dmcVideoQuality');
@@ -12379,15 +12267,17 @@ class Storyboard extends Emitter {
 				$select.find('.select-dmc-' + value).addClass('selected');
 			};
 			const onVideoServerType = (type, videoSessionInfo) => {
-				$button.raf.removeClass('is-smile-playing is-dmc-playing')
-					.raf.addClass(`is-${type === 'dmc' ? 'dmc' : 'smile'}-playing`);
+				$button.raf.removeClass('is-domand-playing is-dmc-playing')
+					.raf.addClass(`is-${type === 'dmc' ? 'dmc' : 'domand'}-playing`);
 				$select.find('.serverType').removeClass('selected');
-				$select.find(`.select-server-${type === 'dmc' ? 'dmc' : 'smile'}`).addClass('selected');
-				$current.raf.text(type !== 'dmc' ? '----' : videoSessionInfo.videoFormat.replace(/^.*h264_/, ''));
+				const $selectServer = $select.find(`.select-server-${type === 'dmc' ? 'dmc' : 'domand'}`);
+				$selectServer.addClass('selected');
+				$selectServer.find('.currentVideoQuality')
+					.raf.text(videoSessionInfo.videoFormat.replace(/^.*h264_/, ''));
 			};
-			updateSmileVideoQuality(config.props.smileVideoQuality);
+			updateDomandVideoQuality(config.props.domandVideoQuality);
 			updateDmcVideoQuality(config.props.dmcVideoQuality);
-			config.onkey('forceEconomy',    updateSmileVideoQuality);
+			config.onkey('domandVideoQuality',    updateDomandVideoQuality);
 			config.onkey('dmcVideoQuality', updateDmcVideoQuality);
 			this.player.on('videoServerType', onVideoServerType);
 		}
@@ -13317,7 +13207,7 @@ util.addStyle(`
 		pointer-events: none;
 		text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
 	}
-	.videoServerTypeSelectMenu .smileVideoQuality,
+	.videoServerTypeSelectMenu .domandVideoQuality,
 	.videoServerTypeSelectMenu .dmcVideoQuality {
 		font-size: 80%;
 		padding-left: 28px;
@@ -13328,7 +13218,7 @@ util.addStyle(`
 		text-align: center;
 	}
 	.videoServerTypeSelectMenu .dmcVideoQuality.selected     span:before,
-	.videoServerTypeSelectMenu .smileVideoQuality.selected   span:before {
+	.videoServerTypeSelectMenu .domandVideoQuality.selected   span:before {
 		left: 22px;
 		font-size: 80%;
 	}
@@ -13353,13 +13243,11 @@ util.addStyle(`
 	.zenzaPlayerContainer:not(.is-dmcAvailable) .serverType {
 		pointer-events: none;
 	}
-	/* dmcを使用している時はsmileの画質選択を薄く */
-	.is-dmc-playing .smileVideoQuality {
-		display: none;
-	}
-	/* dmcを選択していない状態ではdmcの画質選択を隠す */
-	.is-smile-playing .currentVideoQuality,
-	.is-smile-playing .dmcVideoQuality {
+	/* 選択していないシステムの画質選択を隠す */
+	.is-domand-playing .dmcVideoQuality,
+	.is-domand-playing .serverType.select-server-dmc .currentVideoQuality,
+	.is-dmc-playing .domandVideoQuality,
+	.is-dmc-playing .serverType.select-server-domand .currentVideoQuality {
 		display: none;
 	}
 	@media screen and (max-width: 768px) {
@@ -13608,8 +13496,18 @@ util.addStyle(`
 							<div class="triangle"></div>
 							<p class="caption">動画サーバー・画質</p>
 							<ul>
-								<li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
+								<li class="serverType select-server-domand" data-command="update-videoServerType" data-param="domand">
 									<span>新システムを使用</span>
+									<p class="currentVideoQuality"></p>
+								</li>
+								<li class="domandVideoQuality selected select-domand-auto" data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span></li>
+								<li class="domandVideoQuality selected select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span></li>
+								<li class="domandVideoQuality selected select-domand-720p" data-command="update-domandVideoQuality" data-param="720p"><span>720p</span></li>
+								<li class="domandVideoQuality selected select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span></li>
+								<li class="domandVideoQuality selected select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span></li>
+								<li class="domandVideoQuality selected select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span></li>
+								<li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
+									<span>旧システムを使用</span>
 									<p class="currentVideoQuality"></p>
 								</li>
 								<li class="dmcVideoQuality selected select-dmc-auto" data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span></li>
@@ -13617,11 +13515,6 @@ util.addStyle(`
 								<li class="dmcVideoQuality selected select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
 								<li class="dmcVideoQuality selected select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
 								<li class="dmcVideoQuality selected select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
-								<li class="serverType select-server-smile" data-command="update-videoServerType" data-param="smile">
-									<span>旧システムを使用</span>
-								</li>
-								<li class="smileVideoQuality select-smile-default" data-command="update-forceEconomy" data-param="false" data-type="bool"><span>自動</span></li>
-								<li class="smileVideoQuality select-smile-economy" data-command="update-forceEconomy" data-param="true"  data-type="bool"><span>エコノミー固定</span></li>
 						</ul>
 						</div>
 					</div>
@@ -23462,7 +23355,7 @@ class VideoWatchOptions {
 		return this._options.reloadCount > 0;
 	}
 	get videoServerType() {
-		return this._options.videoServerType;
+		return this._options.videoServerType ?? this._config.getValue('videoServerType');
 	}
 	get isAutoZenTubeDisabled() {
 		return !!this._options.isAutoZenTubeDisabled;
@@ -23779,7 +23672,6 @@ class NicoVideoPlayerDialogView extends Emitter {
 		}
 	}
 	_onVideoServerType(type, sessionInfo) {
-		this.toggleClass('is-dmcPlaying', type === 'dmc');
 		this.emit('videoServerType', type, sessionInfo);
 	}
 	_onVideoPlay() {
@@ -23811,8 +23703,8 @@ class NicoVideoPlayerDialogView extends Emitter {
 			isBackComment: 'is-backComment',
 			isShowComment: 'is-showComment',
 			isDebug: 'is-debug',
+			isDomandAvailable: 'is-domandAvailable',
 			isDmcAvailable: 'is-dmcAvailable',
-			isDmcPlaying: 'is-dmcPlaying',
 			isError: 'is-error',
 			isLoading: 'is-loading',
 			isMute: 'is-mute',
@@ -24250,12 +24142,6 @@ NicoVideoPlayerDialogView.__css__ = `
 	}
 	.is-regularUser  .forPremium {
 		display: none !important;
-	}
-	.forDmc {
-		display: none;
-	}
-	.is-dmcPlaying .forDmc {
-		display: inherit;
 	}
 	.zenzaVideoPlayerDialog * {
 		box-sizing: border-box;
@@ -24797,9 +24683,14 @@ class NicoVideoPlayerDialog extends Emitter {
 				this._playerConfig.props.dmcVideoQuality = param;
 				this.reload({videoServerType: 'dmc'});
 				break;
+			case 'update-domandVideoQuality':
+				this._playerConfig.props.videoServerType = 'domand';
+				this._playerConfig.props.dmcVideoQuality = param;
+				this.reload({videoServerType: 'domand'});
+				break;
 			case 'update-videoServerType':
 				this._playerConfig.props.videoServerType = param;
-				this.reload({videoServerType: param === 'dmc' ? 'dmc' : 'smile'});
+				this.reload({videoServerType: param === 'domand' ? 'domand' : 'dmc'});
 				break;
 			case 'update-commentLanguage':
 				if (this._playerConfig.props.commentLanguage === param || this._videoInfo.msgInfo.i18nLanguage === 'ja-jp') {
@@ -25242,23 +25133,23 @@ class NicoVideoPlayerDialog extends Emitter {
 		const videoInfo = this._videoInfo = new VideoInfoModel(videoInfoData, localCacheData);
 		this._watchId = videoInfo.watchId;
 		WatchInfoCacheDb.put(this._watchId, {videoInfo});
-		let serverType = 'dmc';
-		if (!videoInfo.isDmcAvailable) {
-			serverType = 'smile';
-		} else if (videoInfo.isDmcOnly) {
+		let serverType;
+		let videoQuality;
+		if (!videoInfo.isDomandOnly && this._playerConfig.props.autoDisableDmc && videoInfo.maybeBetterQualityServerType === 'dmc') {
 			serverType = 'dmc';
-		} else if (['dmc', 'smile'].includes(this._videoWatchOptions.videoServerType)) {
-			serverType = this._videoWatchOptions.videoServerType;
-		} else if (this._playerConfig.props.videoServerType === 'smile') {
-			serverType = 'smile';
+			videoQuality = this._playerConfig.props.dmcVideoQuality;
+		} else if (videoInfo.isDomandOnly || (this._videoWatchOptions.videoServerType === 'domand' && videoInfo.isDomandAvailable)) {
+			serverType = 'domand';
+			videoQuality = this._playerConfig.props.domandVideoQuality;
+		} else if (videoInfo.isDmcOnly || (this._videoWatchOptions.videoServerType === 'dmc' && videoInfo.isDmcAvailable)) {
+			serverType = 'dmc';
+			videoQuality = this._playerConfig.props.dmcVideoQuality;
 		} else {
-			const disableDmc =
-				this._playerConfig.props.autoDisableDmc &&
-				this._videoWatchOptions.videoServerType !== 'smile' &&
-				videoInfo.maybeBetterQualityServerType === 'smile';
-			serverType = disableDmc ? 'smile' : 'dmc';
+			serverType = 'domand';
+			videoQuality = this._playerConfig.props.domandVideoQuality;
 		}
 		this._state.setState({
+			isDomandAvailable: videoInfo.isDomandAvailable,
 			isDmcAvailable: videoInfo.isDmcAvailable,
 			isCommunity: videoInfo.isCommunityVideo,
 			isMymemory: videoInfo.isMymemory,
@@ -25266,40 +25157,32 @@ class NicoVideoPlayerDialog extends Emitter {
 			isLiked: videoInfo.isLiked
 		});
 		MediaSessionApi.updateByVideoInfo(this._videoInfo);
-		const isHLSRequired = videoInfo.dmcInfo && videoInfo.dmcInfo.isHLSRequired;
+		const isHLSRequired = videoInfo.isHLSRequired;
 		const isHLSSupported = !!global.debug.isHLSSupported ||
-		document.createElement('video').canPlayType('application/x-mpegURL') !== '';
-		const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired']);
-			this._videoSession = await VideoSessionWorker.create({
+			document.createElement('video').canPlayType('application/vnd.apple.mpegURL') !== '' ||
+			document.createElement('video').canPlayType('application/x-mpegURL') !== '';
+		const useHLS = isHLSSupported && (isHLSRequired || !this._playerConfig.props['video.hls.enableOnlyRequired'] || serverType != 'dmc');
+		this._videoSession = await VideoSessionWorker.create({
 			videoInfo,
-			videoQuality: this._playerConfig.props.dmcVideoQuality,
+			videoQuality,
 			serverType,
-			isPlayingCallback: () => this.isPlaying,
-			useWellKnownPort: true,
 			useHLS
 		});
 		if (this._videoFilter.isNgVideo(videoInfo)) {
 			return this._onVideoFilterMatch();
 		}
-		if (this._videoSession.isDmc) {
-			NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
-				.then(() => this._videoSession.connect())
-				.then(sessionInfo => {
-					this.setVideo(sessionInfo.url);
-					videoInfo.setCurrentVideo(sessionInfo.url);
-					this.emit('videoServerType', 'dmc', sessionInfo, videoInfo);
-				})
-				.catch(this._onVideoSessionFail.bind(this));
-		} else {
-			if (this._playerConfig.props.enableVideoSession) {
-				this._videoSession.connect();
+		try {
+			if (this._videoSession.isDmc) {
+				await NVWatchCaller.call(videoInfo.dmcInfo.trackingId)
 			}
-			videoInfo.setCurrentVideo(videoInfo.videoUrl);
-			this.setVideo(videoInfo.videoUrl);
-			this.emit('videoServerType', 'smile', {}, videoInfo);
+			const sessionInfo = await this._videoSession.connect();
+			this.setVideo(sessionInfo.url);
+			videoInfo.setCurrentVideo(sessionInfo.url);
+			this.emit('videoServerType', sessionInfo.type, sessionInfo, videoInfo);
+		} catch (e) {
+			this._onVideoSessionFail(e);
 		}
 		this._state.videoInfo = videoInfo;
-		this._state.isDmcPlaying = this._videoSession.isDmc;
 		this.loadComment(videoInfo.msgInfo);
 		this.emit('loadVideoInfo', videoInfo);
 		this.emitResolve('firstVideoInitialized', this._watchId);
@@ -25527,7 +25410,7 @@ class NicoVideoPlayerDialog extends Emitter {
 			}, 3000);
 		};
 		const sessionState = await this._videoSession.getState();
-		const {isDmc, isDeleted, isAbnormallyClosed} = sessionState;
+		const {isDomand, isDmc, isDeleted, isAbnormallyClosed} = sessionState;
 		const videoWatchOptions = this._videoWatchOptions;
 		const code = (e && e.target && e.target.error && e.target.error.code) || 0;
 		window.console.error('VideoError!', code, e, (e.target && e.target.error), {isDeleted, isAbnormallyClosed});
@@ -25537,12 +25420,12 @@ class NicoVideoPlayerDialog extends Emitter {
 			} else {
 				this._setErrorMessage('動画のセッションが切断されました。');
 			}
-		} else if (!isDmc && this._videoInfo.isDmcAvailable) {
-			this._setErrorMessage('SMILE動画の再生に失敗しました。DMC動画に接続します。');
-			retry({economy: false, videoServerType: 'dmc'});
-		} else if (!isDmc && (!this._videoWatchOptions.isEconomySelected && !this._videoInfo.isEconomy)) {
-			this._setErrorMessage('動画の再生に失敗しました。エコノミー動画に接続します。');
-			retry({economy: true, videoServerType: 'smile'});
+		} else if (isDomand && this._videoInfo.isDmcAvailable) {
+			this._setErrorMessage('Domand動画の再生に失敗しました。DMC動画に接続します。');
+			retry({videoServerType: 'dmc'});
+		} else if (isDmc && this._videoInfo.isDomandAvailable) {
+			this._setErrorMessage('DMC動画の再生に失敗しました。Domand動画に接続します。');
+			retry({videoServerType: 'domand'});
 		} else {
 			this._setErrorMessage('動画の再生に失敗しました。');
 		}
@@ -32264,7 +32147,7 @@ const WatchInfoCacheDb = (() => {
 		return instance = {
 			async put(watchId, options = {}) {
 				const videoInfo = options.videoInfo || null;
-				const videoInfoRawData = (videoInfo && videoInfo.getData) ? videoInfo.getData() : videoInfo;
+				const videoInfoRawData = (videoInfo && videoInfo.toJSON) ? videoInfo.toJSON() : videoInfo;
 				const cache = await this.get(watchId) || {};
 				const now = Date.now();
 				const videoId = videoInfo ? videoInfo.videoId : watchId;
@@ -32515,24 +32398,15 @@ const VideoSessionWorker = (() => {
 			}
 			toString() {
 				let dmcInfo = this._dmcInfo;
-				let videos = [];
-				let availableVideos =
-						dmcInfo.videos.filter(v => v.isAvailable)
-								.sort((a, b) => b.levelIndex - a.levelIndex);
-				let reg = VIDEO_QUALITY[this._videoQuality] || VIDEO_QUALITY.auto;
+				const availableVideos = dmcInfo.availableVideoIds;
+				const reg = VIDEO_QUALITY[this._videoQuality] || VIDEO_QUALITY.auto;
+				let videos;
 				if (reg === VIDEO_QUALITY.auto) {
-					videos = availableVideos.map(v => v.id);
+					videos = availableVideos;
 				} else {
-					availableVideos.forEach(format => {
-						if (reg.test(format.id)) {
-							videos.push(format.id);
-						}
-					});
-					if (videos.length < 1) {
-						videos[0] = availableVideos[0].id;
-					}
+					videos = [availableVideos.find(v => reg.test(v)) ?? availableVideos[0]];
 				}
-				let audios = [dmcInfo.audios[0]];
+				const audios = [dmcInfo.availableAudioIds[0]];
 				let contentSrcIdSets =
 					(this._useHLS && reg === VIDEO_QUALITY.auto) ?
 						this._buildAbrContentSrcIdSets(videos, audios) :
@@ -32625,15 +32499,16 @@ const VideoSessionWorker = (() => {
 		}
 		class VideoSession {
 			static create(params) {
-				if (params.serverType === 'dmc') {
+				if (params.serverType === 'domand') {
+					return new DomandSession(params);
+				} else if (params.serverType === 'dmc') {
 					return new DmcSession(params);
 				} else {
-					return new SmileSession(params);
+					throw new Error('Unknown server type');
 				}
 			}
 			constructor(params) {
 				this._videoInfo = params.videoInfo;
-				this._dmcInfo = params.dmcInfo;
 				this._isPlaying = () => true;
 				this._pauseCount = 0;
 				this._failCount = 0;
@@ -32644,13 +32519,14 @@ const VideoSessionWorker = (() => {
 				this._isAbnormallyClosed = false;
 				this._heartBeatTimer = null;
 				this._useSSL = !!params.useSSL;
+				this._useHLS = !!params.useHLS;
 				this._useWellKnownPort = true;
 				this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
 				this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
 			}
-			connect() {
+			async connect() {
 				this._createdAt = Date.now();
-				return this._createSession(this._videoInfo, this._dmcInfo);
+				return await this._createSession();
 			}
 			enableHeartBeat() {
 				this.disableHeartBeat();
@@ -32685,19 +32561,97 @@ const VideoSessionWorker = (() => {
 					this.close();
 				}
 			}
-			close() {
+			async close() {
 				this._isClosed = true;
 				this.disableHeartBeat();
-				return this._deleteSession();
+				return await this._deleteSession();
 			}
 			get isDeleted() {
 				return !!this._isDeleted;
 			}
+			get isDomand() {
+				return false;
+			}
 			get isDmc() {
-				return this._serverType === 'dmc';
+				return false;
 			}
 			get isAbnormallyClosed() {
 				return this._isAbnormallyClosed;
+			}
+		}
+		class DomandSession extends VideoSession {
+			constructor(params) {
+				super(params);
+				this._serverType = 'domand';
+				this._expireTime = new Date();
+				this._domandInfo = this._videoInfo.domandInfo;
+			}
+			async _createSession() {
+				console.time('create Domand session');
+				if (!this._useHLS) {
+					throw new Error('HLSに未対応');
+				}
+				const audio = this._domandInfo.availableAudioIds[0];
+				const availableVideos = this._domandInfo.availableVideoIds;
+				let video;
+				if (this._videoQuality === 'auto') {
+					video = availableVideos[0];
+				} else {
+					let reg = new RegExp(`-${this._videoQuality}$`);
+					video = availableVideos.find(v => reg.test(v)) ?? availableVideos[0];
+				}
+				const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
+				const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/hls?${query.toString()}`;
+				const result = await util.fetch(url, {
+					method: 'post',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-Frontend-Id': 6,
+						'X-Frontend-Version': '0',
+						'X-Request-With': 'https://www.nicovideo.jp',
+						'X-Access-Right-Key': this._domandInfo.accessRightKey,
+					},
+					credentials: 'include',
+					body: JSON.stringify({outputs: [[video, audio]]})
+				}).then(res => res.json());
+				if (result.meta.status == null || result.meta.status >= 300) {
+					throw new Error('cannot create domand session', result)
+				}
+				this._lastResponse = result.data || {};
+				const {
+					contentUrl,
+					createTime,
+					expireTime
+				} = this._lastResponse;
+				this._lastUpdate = Date.now();
+				this._expireTime = new Date(expireTime);
+				this._videoSessionInfo = {
+					type: 'domand',
+					url: contentUrl,
+					videoFormat: video,
+					audioFormat: audio,
+					lastResponse: result
+				};
+				console.timeEnd('create Domand session');
+				return this._videoSessionInfo;
+			}
+			async _deleteSession() {
+				if (this._isDeleted) {
+					return;
+				}
+				this._isDeleted = true;
+			}
+			get isDeleted() {
+				if (this._isDeleted) {
+					return true;
+				}
+				if (Date.now() > this._expireTime) {
+					this._isDeleted = true;
+				}
+				return this._isDeleted;
+			}
+			get isDomand() {
+				return true;
 			}
 		}
 		class DmcSession extends VideoSession {
@@ -32707,11 +32661,12 @@ const VideoSessionWorker = (() => {
 				this._heartBeatInterval = DMC_HEART_BEAT_INTERVAL_MS;
 				this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
 				this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
-				this._useHLS = typeof params.useHLS === 'boolean' ? params.useHLS : true;
 				this._lastUpdate = Date.now();
 				this._heartbeatLifetime = this._heartBeatInterval;
+				this._dmcInfo = this._videoInfo.dmcInfo;
 			}
-			_createSession(videoInfo, dmcInfo) {
+			_createSession() {
+				const dmcInfo = this._dmcInfo;
 				console.time('create DMC session');
 				const baseUrl = (dmcInfo.urls.find(url => url.is_well_known_port === this._useWellKnownPort) || dmcInfo.urls[0]).url;
 				return new Promise((resolve, reject) => {
@@ -32799,60 +32754,8 @@ const VideoSessionWorker = (() => {
 			get isDeleted() {
 				return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifetime * 1.2;
 			}
-		}
-		class SmileSession extends VideoSession {
-			constructor(params) {
-				super(params);
-				this._serverType = 'smile';
-				this._heartBeatInterval = SMILE_HEART_BEAT_INTERVAL_MS;
-				this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
-				this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
-				this._lastUpdate = Date.now();
-			}
-			_createSession(videoInfo) {
-				this.enableHeartBeat();
-				return Promise.resolve(videoInfo.videoUrl);
-			}
-			_heartBeat() {
-				let url = this._videoInfo.watchUrl;
-				let query = [
-					'mode=pc_html5',
-					'playlist_token=' + this._videoInfo.playlistToken,
-					'continue_watching=1',
-					'watch_harmful=2'
-				];
-				if (this._videoInfo.isEconomy) {
-					query.push(this._videoInfo.isEconomy ? 'eco=1' : 'eco=0');
-				}
-				if (query.length > 0) {
-					url += '?' + query.join('&');
-				}
-				util.fetch(url, {
-					timeout: 10000,
-					credentials: 'include'
-				}).then(res => res.json())
-					.then(this._onHeartBeatSuccess)
-					.catch(this._onHeartBeatFail);
-			}
-			_deleteSession() {
-				if (this._isDeleted) {
-					return Promise.resolve();
-				}
-				this._isDeleted = true;
-				return Promise.resolve();
-			}
-			_onHeartBeatSuccess(result) {
-				this._lastResponse = result;
-				if (result.status !== 'ok') {
-					return this._onHeartBeatFail();
-				}
-				this._lastUpdate = Date.now();
-				if (result && result.flashvars && result.flashvars.watchAuthKey) {
-					this._videoInfo.watchAuthKey = result.flashvars.watchAuthKey;
-				}
-			}
-			get isDeleted() {
-				return this._isDeleted || (Date.now() - this._lastUpdate > 10 * 60 * 1000);
+			get isDmc() {
+				return true;
 			}
 		}
 		const DmcStoryboardInfoLoader = (() => {
@@ -32992,16 +32895,16 @@ const VideoSessionWorker = (() => {
 		const SESSION_ID = Symbol('SESSION_ID');
 		const getSessionId = function() { return `session_${this.id++}`; }.bind({id: 0});
 		let current = null;
-		const create = async ({videoInfo, dmcInfo, videoQuality, serverType, useHLS}) => {
+		const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
 			if (current) {
 				current.close();
 				current = null;
 			}
-			current = await VideoSession.create({
-				videoInfo, dmcInfo, videoQuality, serverType, useHLS});
+			current = await VideoSession.create({videoInfo, videoQuality, serverType, useHLS});
 			const sessionId = getSessionId();
 			current[SESSION_ID] = sessionId;
 			return {
+				isDomand: current.isDomand,
 				isDmc: current.isDmc,
 				sessionId
 			};
@@ -33014,6 +32917,7 @@ const VideoSessionWorker = (() => {
 				return {};
 			}
 			return {
+				isDomand: current.isDomand,
 				isDmc: current.isDmc,
 				isDeleted: current.isDeleted,
 				isAbnormallyClosed: current.isAbnormallyClosed,
@@ -33064,8 +32968,7 @@ const VideoSessionWorker = (() => {
 	const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
 		await initWorker();
 		const params = {
-			videoInfo: videoInfo.getData(),
-			dmcInfo: videoInfo.dmcInfo ? videoInfo.dmcInfo.getData() : null,
+			videoInfo: videoInfo.toJSON(),
 			videoQuality,
 			serverType,
 			useHLS
