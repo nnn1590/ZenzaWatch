@@ -477,7 +477,7 @@ const VideoSessionWorker = (() => {
       static create({type, ...params}) {
         switch (type) {
           case 'domand':
-            throw new Error('currently, not supported domand storyboard');
+            return new DomandStoryboardInfoLoader(params);
           case 'dmc':
             return new DmcStoryboardInfoLoader(params);
           default:
@@ -569,6 +569,62 @@ const VideoSessionWorker = (() => {
       }
     }
 
+    class DomandStoryboardInfoLoader extends StoryboardInfoLoader {
+      constructor(params) {
+        super(params);
+        this._rawData = null;
+      }
+
+      async load() {
+        try {
+          const result = await util.fetch(this._url, {credentials: 'include'});
+          this._rawData = await result.json();
+        } catch {
+          throw 'storyboard request fail';
+        }
+      }
+
+      get storyboard() {
+        if (this._rawData == null) {
+          return null;
+        }
+        const {
+          thumbnailWidth: width,
+          thumbnailHeight: height,
+          images,
+          ...sbInfo
+        } = this._rawData;
+        return {
+          ...sbInfo,
+          thumbnail: {
+            width,
+            height,
+          },
+          images: images.map(image => {
+            const url = new URL(this._url);
+            const name = image.url;
+            url.pathname = url.pathname.replace(/storyboard\.json$/, name);
+            image.url = url.toString();
+            return image;
+          }),
+        }
+      }
+
+      async getInfo() {
+        return {
+          ...await this._getInfo(),
+          format: 'domand',
+        };
+      }
+
+      toJSON() {
+        return {
+          ...this._toJSON(),
+          format: 'domand',
+        };
+      }
+    }
+
     class DmcStoryboardInfoLoader extends StoryboardInfoLoader {
       constructor(params) {
         super(params);
@@ -635,8 +691,7 @@ const VideoSessionWorker = (() => {
     class StoryboardSession {
       static create({serverType, ...params}) {
         if (serverType === 'domand') {
-          throw new Error('currently, not supported domand storyboard');
-          // return new DomandStoryboardSession(params);
+          return new DomandStoryboardSession(params);
         } else if (serverType === 'dmc') {
           return new DmcStoryboardSession(params);
         } else {
@@ -650,6 +705,48 @@ const VideoSessionWorker = (() => {
 
       async create() {
         return await this._createSession();
+      }
+    }
+
+    class DomandStoryboardSession extends StoryboardSession {
+      constructor(params) {
+        super(params);
+        this._info = this._videoInfo.domandInfo;
+      }
+
+      async _createSession() {
+        const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
+        const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/storyboard?${query.toString()}`;
+        try {
+          const result = await util.fetch(url, {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Frontend-Id': 6,
+              'X-Frontend-Version': '0',
+              'X-Request-With': 'https://www.nicovideo.jp',
+              'X-Access-Right-Key': this._info.accessRightKey,
+            },
+            credentials: 'include',
+          }).then(res => res.json());
+          if (result.meta.status && result.meta.status >= 300) {
+            throw 'api_not_exist';
+          }
+          return this._toSessionInfo(result.data);
+        } catch (err) {
+          if (err === 'api_not_exist') {
+            throw 'Domand storyboard api not exist';
+          }
+          console.error('create domand session fail', err);
+          throw 'create domand session fail';
+        }
+      }
+
+      _toSessionInfo({contentUrl: url}) {
+        return {
+          type: 'domand',
+          url,
+        };
       }
     }
 
