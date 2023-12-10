@@ -125,8 +125,8 @@ const {SettingPanelElement} = (() => {
         <div class="control">
           <label>
             <input type="checkbox" class="checkbox"
-              data-setting-name="autoDisableDmc"
-              ?checked=${conf.autoDisableDmc}>
+              data-setting-name="autoDisableNew"
+              ?checked=${conf.autoDisableNew}>
               旧システムのほうが画質が良さそうな時は旧システムを使う<br>
               <small>たまに誤爆することがあります (回転情報の含まれる動画など)</small>
           </label>

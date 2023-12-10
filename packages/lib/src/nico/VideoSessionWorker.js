@@ -19,7 +19,7 @@ const VideoSessionWorker = (() => {
 
     const util = {
       fetch(url, params = {}) { // ブラウザによっては location.origin は 'blob:' しか入らない
-        if (!location.origin.endsWith('.nicovideo.jp') && !/^blob:https?:\/\/[a-z0-9]+\.nicovideo\.jp\//.test(location.href)) {
+        if (!location.origin.endsWith('.nicovideo.jp') && !new RegExp('^blob:https?://[a-z0-9]+\\.nicovideo\\.jp/').test(location.href)) {
           return self.xFetch(url, params);
         }
         const racers = [];
@@ -73,9 +73,9 @@ const VideoSessionWorker = (() => {
         const audios = [dmcInfo.availableAudioIds[0]];
 
         let contentSrcIdSets =
-          (this._useHLS && reg === VIDEO_QUALITY.auto) ?
-            this._buildAbrContentSrcIdSets(videos, audios) :
-            this._buildContentSrcIdSets(videos, audios);
+          (this._useHLS && reg === VIDEO_QUALITY.auto)
+          ? this._buildAbrContentSrcIdSets(videos, audios)
+          : this._buildContentSrcIdSets(videos, audios);
 
         let http_parameters = {};
         let parameters = {
@@ -174,32 +174,32 @@ const VideoSessionWorker = (() => {
 
     class VideoSession {
 
-      static create(params) {
-        if (params.serverType === 'domand') {
+      static create({serverType, ...params}) {
+        if (serverType === 'domand') {
           return new DomandSession(params);
-        } else if (params.serverType === 'dmc') {
+        } else if (serverType === 'dmc') {
           return new DmcSession(params);
         } else {
           throw new Error('Unknown server type');
         }
       }
 
-      constructor(params) {
-        this._videoInfo = params.videoInfo;
+      constructor({videoInfo, videoQuality, useHLS}) {
+        this._videoInfo = videoInfo;
 
         this._isPlaying = () => true;
         this._pauseCount = 0;
         this._failCount = 0;
         this._lastResponse = '';
-        this._videoQuality = params.videoQuality || 'auto';
+        this._videoQuality = videoQuality || 'auto';
         this._videoSessionInfo = {};
         this._isDeleted = false;
         this._isAbnormallyClosed = false;
 
         this._heartBeatTimer = null;
 
-        this._useSSL = !!params.useSSL;
-        this._useHLS = !!params.useHLS;
+        this._useSSL = true;
+        this._useHLS = !!useHLS;
         this._useWellKnownPort = true;
 
         this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
@@ -418,9 +418,9 @@ const VideoSessionWorker = (() => {
               console.timeEnd('create DMC session');
               resolve(this._videoSessionInfo);
             }).catch(err => {
-            console.error('create api fail', err);
-            reject(err.message || err);
-          });
+              console.error('create api fail', err);
+              reject(err.message || err);
+            });
         });
       }
 
@@ -473,101 +473,317 @@ const VideoSessionWorker = (() => {
     }
 
 
-    const DmcStoryboardInfoLoader = (() => {
-      const parseStoryboard = sb => {
-        const result = {
-          id: 0,
-          urls: [],
-          quality: sb.quality,
+    class StoryboardInfoLoader {
+      static create({type, ...params}) {
+        switch (type) {
+          case 'domand':
+            return new DomandStoryboardInfoLoader(params);
+          case 'dmc':
+            return new DmcStoryboardInfoLoader(params);
+          default:
+            throw new Error('Unknown server type');
+        }
+      }
+
+      constructor({url}) {
+        this._url = url;
+        this._duration = 1;
+      }
+
+      async load() {
+        throw new Error('not implemented');
+      }
+
+      get storyboard() {
+        return {
+          version: "1",
           thumbnail: {
-            width: sb.thumbnail_width,
-            height: sb.thumbnail_height,
-            number: null,
-            interval: sb.interval
+            width: 160,
+            height: 90,
           },
-          board: {
-            rows: sb.rows,
-            cols: sb.columns,
-            number: sb.images.length
-          }
+          columns: 1,
+          rows: 1,
+          interval: 1000,
+          quality: 1,
+          images: [{
+            timestamp: 0,
+            url: 'https://example.com'
+          }],
         };
-        sb.images.forEach(image => result.urls.push(image.uri));
+      }
 
-        return result;
-      };
+      get duration() {
+        return this._duration;
+      }
 
+      set duration(value) {
+        this._duration = value;
+      }
 
-      const parseMeta = meta => {
-        const result = {
-          format: 'dmc',
-          status: meta.meta.message,
-          url: null,
-          movieId: null,
-          storyboard: []
-        };
-
-        meta.data.storyboards.forEach(sb => {
-          result.storyboard.unshift(parseStoryboard(sb));
-        });
-
-        // 画質の良い順にソート
-        result.storyboard.sort((a, b) => {
-          if (a.quality < b.quality) {
-            return 1;
-          }
-          if (a.quality > b.quality) {
-            return -1;
-          }
-          return 0;
-        });
-
-        return result;
-      };
-
-
-      const load = url => {
-        return util.fetch(url, {credentials: 'include'}).then(res => res.json())
-          .then(info => {
-            if (!info.meta || !info.meta.message || info.meta.message !== 'ok') {
-              return Promise.reject('storyboard request fail');
+      async getStoryboardWithImages() {
+        const fetchImages = this.storyboard.images.map(async image => {
+          try {
+            const res = await fetch(image.url);
+            return {
+              ...image,
+              buffer: await res.arrayBuffer(),
             }
-            return parseMeta(info);
-          });
-      };
+          } catch {
+            return image;
+          }
+        });
+        const count = Math.ceil(this.duration * 1000 / this.storyboard.interval);
+        return {
+          ...this.storyboard,
+          count,
+          images: await Promise.all(fetchImages),
+        }
+      }
 
-      return {
-        load,
-        _parseMeta: parseMeta,
-        _parseStoryboard: parseStoryboard
-      };
-    })();
+      async _getInfo() {
+        return {
+          duration: this.duration,
+          storyboard: await this.getStoryboardWithImages(),
+        };
+      }
+
+      async getInfo() {
+        return {
+          ...await this._getInfo(),
+          format: 'unknown',
+        };
+      }
+
+      _toJSON() {
+        return {
+          duration: this.duration,
+          storyboard: this.storyboard,
+        };
+      }
+
+      toJSON() {
+        return {
+          ...this._toJSON(),
+          format: 'unknown',
+        };
+      }
+    }
+
+    class DomandStoryboardInfoLoader extends StoryboardInfoLoader {
+      constructor(params) {
+        super(params);
+        this._rawData = null;
+      }
+
+      async load() {
+        try {
+          const result = await util.fetch(this._url, {credentials: 'include'});
+          this._rawData = await result.json();
+        } catch {
+          throw 'storyboard request fail';
+        }
+      }
+
+      get storyboard() {
+        if (this._rawData == null) {
+          return null;
+        }
+        const {
+          thumbnailWidth: width,
+          thumbnailHeight: height,
+          images,
+          ...sbInfo
+        } = this._rawData;
+        return {
+          ...sbInfo,
+          thumbnail: {
+            width,
+            height,
+          },
+          images: images.map(image => {
+            const url = new URL(this._url);
+            const name = image.url;
+            url.pathname = url.pathname.replace(/storyboard\.json$/, name);
+            image.url = url.toString();
+            return image;
+          }),
+        }
+      }
+
+      async getInfo() {
+        return {
+          ...await this._getInfo(),
+          format: 'domand',
+        };
+      }
+
+      toJSON() {
+        return {
+          ...this._toJSON(),
+          format: 'domand',
+        };
+      }
+    }
+
+    class DmcStoryboardInfoLoader extends StoryboardInfoLoader {
+      constructor(params) {
+        super(params);
+        this._rawData = null;
+      }
+
+      async load() {
+        const result = await util.fetch(this._url, {credentials: 'include'}).then(res => res.json());
+        if (result.meta.status && result.meta.status >= 300) {
+          throw 'storyboard request fail';
+        }
+        this._rawData = result.data;
+        return;
+      }
+
+      get _storyboards() {
+        const {storyboards = [], version = 0} = this._rawData ?? {};
+        const ver = version.toString();
+        return storyboards.map(sb => {
+          const images = sb.images.map(img => {
+            return {
+              timestamp: img.timestamp,
+              url: img.uri,
+            }
+          })
+          return {
+            version: ver,
+            thumbnail: {
+              width: sb.thumbnail_width,
+              height: sb.thumbnail_height,
+            },
+            columns: sb.columns,
+            rows: sb.rows,
+            interval: sb.interval,
+            quality: sb.quality,
+            images,
+          }
+        }).toSorted((a, b) => b.quality < a.quality);
+      }
+
+      get storyboard() {
+        if (this._storyboards.length > 0) {
+          return this._storyboards[0];
+        }
+
+        return null;
+      }
+
+      async getInfo() {
+        return {
+          ...await this._getInfo(),
+          format: 'dmc',
+        };
+      }
+
+      toJSON() {
+        return {
+          ...this._toJSON(),
+          format: 'dmc',
+        };
+      }
+    }
 
     class StoryboardSession {
-      constructor(info) {
-        this._info = info;
-        this._url = info.urls[0].url;
-      }
-
-      create() {
-        const url = `${this._url}?_format=json`;
-        const body = this._createRequestString(this._info);
-        return util.fetch(url, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body
-        }).then(res => res.json()).catch(err => {
-          console.error('create dmc session fail', err);
-          return Promise.reject('create dmc session fail');
-        });
-      }
-
-      _createRequestString(info) {
-        if (!info) {
-          info = this._info;
+      static create({serverType, ...params}) {
+        if (serverType === 'domand') {
+          return new DomandStoryboardSession(params);
+        } else if (serverType === 'dmc') {
+          return new DmcStoryboardSession(params);
+        } else {
+          throw new Error('Unknown server type');
         }
+      }
+
+      constructor({videoInfo}) {
+        this._videoInfo = videoInfo;
+      }
+
+      async create() {
+        return await this._createSession();
+      }
+    }
+
+    class DomandStoryboardSession extends StoryboardSession {
+      constructor(params) {
+        super(params);
+        this._info = this._videoInfo.domandInfo;
+      }
+
+      async _createSession() {
+        const query = new URLSearchParams({ actionTrackId: this._videoInfo.actionTrackId });
+        const url = `https://nvapi.nicovideo.jp/v1/watch/${this._videoInfo.videoId}/access-rights/storyboard?${query.toString()}`;
+        try {
+          const result = await util.fetch(url, {
+            method: 'post',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Frontend-Id': 6,
+              'X-Frontend-Version': '0',
+              'X-Request-With': 'https://www.nicovideo.jp',
+              'X-Access-Right-Key': this._info.accessRightKey,
+            },
+            credentials: 'include',
+          }).then(res => res.json());
+          if (result.meta.status && result.meta.status >= 300) {
+            throw 'api_not_exist';
+          }
+          return this._toSessionInfo(result.data);
+        } catch (err) {
+          if (err === 'api_not_exist') {
+            throw 'Domand storyboard api not exist';
+          }
+          console.error('create domand session fail', err);
+          throw 'create domand session fail';
+        }
+      }
+
+      _toSessionInfo({contentUrl: url}) {
+        return {
+          type: 'domand',
+          url,
+        };
+      }
+    }
+
+    class DmcStoryboardSession extends StoryboardSession {
+      constructor(params) {
+        super(params);
+        this._info = this._videoInfo.dmcStoryboardInfo;
+        this._url = this._info.urls[0].url;
+      }
+
+      async _createSession() {
+        const url = `${this._url}?_format=json`;
+        const body = this._createRequestString();
+        try {
+          const result = await util.fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body
+          }).then(res => res.json());
+          if (result.meta.status && result.meta.status >= 300 || !result.data?.session?.content_uri) {
+            throw 'api_not_exist';
+          }
+          return this._toSessionInfo(result.data);
+        } catch (err) {
+          if (err === 'api_not_exist') {
+            throw 'DMC storyboard api not exist';
+          }
+          console.error('create dmc session fail', err);
+          throw 'create dmc session fail';
+        }
+      }
+
+      _createRequestString() {
+        const info = this._info;
 
         // 階層が深くて目が疲れた
         const request = {
@@ -599,8 +815,8 @@ const VideoSessionWorker = (() => {
                 http_parameters: {
                   parameters: {
                     storyboard_download_parameters: {
-                      use_well_known_port: info.urls[0].isWellKnownPort ? 'yes' : 'no',
-                      use_ssl: info.urls[0].isSsl ? 'yes' : 'no'
+                      use_well_known_port: 'yes',
+                      use_ssl: 'yes'
                     }
                   }
                 }
@@ -617,28 +833,29 @@ const VideoSessionWorker = (() => {
           }
         };
 
-        (info.videos || []).forEach(video => {
-          request.session.content_src_id_sets[0].content_src_ids.push(video);
-        });
-
         //console.log('storyboard session request', JSON.stringify(request, null, ' '));
         return JSON.stringify(request);
       }
+
+      _toSessionInfo({session: {content_uri: url}}) {
+        return {
+          type: 'dmc',
+          url,
+        };
+      }
     }
-
-
 
 
     const SESSION_ID = Symbol('SESSION_ID');
     const getSessionId = function() { return `session_${this.id++}`; }.bind({id: 0});
 
     let current = null;
-    const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
+    const create = async (params) => {
       if (current) {
         current.close();
         current = null;
       }
-      current = await VideoSession.create({videoInfo, videoQuality, serverType, useHLS});
+      current = await VideoSession.create(params);
       const sessionId = getSessionId();
       current[SESSION_ID] = sessionId;
 
@@ -675,22 +892,24 @@ const VideoSessionWorker = (() => {
       current = null;
     };
 
-    const storyboard = async ({info, duration}) => {
-      const result = await new StoryboardSession(info).create();
-      if (!result || !result.data || !result.data.session || !result.data.session.content_uri) {
-        return Promise.reject('DMC storyboard api not exist');
+    const storyboard = async ({videoInfo, serverType}) => {
+      const sbSessionInfo = await StoryboardSession.create({videoInfo, serverType}).create();
+      const loader = StoryboardInfoLoader.create(sbSessionInfo);
+      loader.duration = videoInfo.duration;
+      await loader.load();
+      try {
+        const sbInfo = await loader.getInfo();
+        return {
+          ...sbInfo,
+          status: 'ok',
+          watchId: videoInfo.watchId,
+        };
+      } catch {
+        return {
+          watchId: videoInfo.watchId,
+          status: 'fail',
+        }
       }
-      const uri = result.data.session.content_uri;
-      const sbInfo = await DmcStoryboardInfoLoader.load(uri);
-      for (let board of sbInfo.storyboard) {
-        board.thumbnail.number = Math.floor(duration * 1000 / board.thumbnail.interval);
-        board.urls = await Promise.all(
-          board.urls.map(url => fetch(url).then(r => r.arrayBuffer()).catch(() => url)
-        ));
-        break; // 二番目以降は低画質
-      }
-      sbInfo.duration = duration;
-      return sbInfo;
     };
 
     self.onmessage = async ({command, params}) => {
@@ -731,17 +950,18 @@ const VideoSessionWorker = (() => {
     });
   };
 
-  const storyboard = async (watchId, sbSessionInfo, duration) => {
-    const cache = await StoryboardCacheDb.get(watchId);
+  const storyboard = async ({type, info}) => {
+    const videoInfo = info.toJSON();
+    const cacheId = `${videoInfo.watchId}_${type}`;
+    const cache = await StoryboardCacheDb.get(cacheId);
     if (cache) {
       return cache;
     }
-    worker = worker || workerUtil.createCrossMessageWorker(func);
-    const params = {info: sbSessionInfo, duration};
-    const sbInfo = await worker.post({command: 'storyboard', params});
-    sbInfo.watchId = watchId;
-    StoryboardCacheDb.put(watchId, sbInfo);
-    return sbInfo;
+    await initWorker();
+    const params = {videoInfo, serverType: type};
+    const result = await worker.post({command: 'storyboard', params});
+    StoryboardCacheDb.put(cacheId, result);
+    return result;
   };
 
   return {initWorker, create, storyboard};

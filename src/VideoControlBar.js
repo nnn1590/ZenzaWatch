@@ -240,12 +240,12 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
         const $selectServer = $select.find(`.select-server-${type === 'dmc' ? 'dmc' : 'domand'}`);
         $selectServer.addClass('selected');
         $selectServer.find('.currentVideoQuality')
-          .raf.text(videoSessionInfo.videoFormat.replace(/^.*h264_/, ''));
+          .raf.text(videoSessionInfo.videoFormat.replace(/^.*h264(-|_)/, ''));
       };
 
       updateDomandVideoQuality(config.props.domandVideoQuality);
       updateDmcVideoQuality(config.props.dmcVideoQuality);
-      config.onkey('domandVideoQuality',    updateDomandVideoQuality);
+      config.onkey('domandVideoQuality', updateDomandVideoQuality);
       config.onkey('dmcVideoQuality', updateDmcVideoQuality);
 
       this.player.on('videoServerType', onVideoServerType);
