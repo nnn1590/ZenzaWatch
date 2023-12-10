@@ -572,7 +572,7 @@ const VideoSessionWorker = (() => {
 
       async _createSession() {
         const url = `${this._url}?_format=json`;
-        const body = this._createRequestString(this._info);
+        const body = this._createRequestString();
         try {
           const result = await util.fetch(url, {
             method: 'POST',
@@ -595,10 +595,8 @@ const VideoSessionWorker = (() => {
         }
       }
 
-      _createRequestString(info) {
-        if (!info) {
-          info = this._info;
-        }
+      _createRequestString() {
+        const info = this._info;
 
         // 階層が深くて目が疲れた
         const request = {
@@ -630,8 +628,8 @@ const VideoSessionWorker = (() => {
                 http_parameters: {
                   parameters: {
                     storyboard_download_parameters: {
-                      use_well_known_port: info.urls[0].isWellKnownPort ? 'yes' : 'no',
-                      use_ssl: info.urls[0].isSsl ? 'yes' : 'no'
+                      use_well_known_port: 'yes',
+                      use_ssl: 'yes'
                     }
                   }
                 }
@@ -647,10 +645,6 @@ const VideoSessionWorker = (() => {
             timing_constraint: 'unlimited'
           }
         };
-
-        (info.videos || []).forEach(video => {
-          request.session.content_src_id_sets[0].content_src_ids.push(video);
-        });
 
         //console.log('storyboard session request', JSON.stringify(request, null, ' '));
         return JSON.stringify(request);
