@@ -174,32 +174,32 @@ const VideoSessionWorker = (() => {
 
     class VideoSession {
 
-      static create(params) {
-        if (params.serverType === 'domand') {
+      static create({serverType, ...params}) {
+        if (serverType === 'domand') {
           return new DomandSession(params);
-        } else if (params.serverType === 'dmc') {
+        } else if (serverType === 'dmc') {
           return new DmcSession(params);
         } else {
           throw new Error('Unknown server type');
         }
       }
 
-      constructor(params) {
-        this._videoInfo = params.videoInfo;
+      constructor({videoInfo, videoQuality, useHLS}) {
+        this._videoInfo = videoInfo;
 
         this._isPlaying = () => true;
         this._pauseCount = 0;
         this._failCount = 0;
         this._lastResponse = '';
-        this._videoQuality = params.videoQuality || 'auto';
+        this._videoQuality = videoQuality || 'auto';
         this._videoSessionInfo = {};
         this._isDeleted = false;
         this._isAbnormallyClosed = false;
 
         this._heartBeatTimer = null;
 
-        this._useSSL = !!params.useSSL;
-        this._useHLS = !!params.useHLS;
+        this._useSSL = true;
+        this._useHLS = !!useHLS;
         this._useWellKnownPort = true;
 
         this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
@@ -543,25 +543,56 @@ const VideoSessionWorker = (() => {
     })();
 
     class StoryboardSession {
-      constructor(info) {
-        this._info = info;
-        this._url = info.urls[0].url;
+      static create({serverType, ...params}) {
+        if (serverType === 'domand') {
+          throw new Error('currently, not supported domand storyboard');
+          // return new DomandStoryboardSession(params);
+        } else if (serverType === 'dmc') {
+          return new DmcStoryboardSession(params);
+        } else {
+          throw new Error('Unknown server type');
+        }
       }
 
-      create() {
+      constructor({videoInfo}) {
+        this._videoInfo = videoInfo;
+      }
+
+      async create() {
+        return await this._createSession();
+      }
+    }
+
+    class DmcStoryboardSession extends StoryboardSession {
+      constructor(params) {
+        super(params);
+        this._info = this._videoInfo.dmcStoryboardInfo;
+        this._url = this._info.urls[0].url;
+      }
+
+      async _createSession() {
         const url = `${this._url}?_format=json`;
         const body = this._createRequestString(this._info);
-        return util.fetch(url, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body
-        }).then(res => res.json()).catch(err => {
+        try {
+          const result = await util.fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body
+          }).then(res => res.json());
+          if (!result || !result.data || !result.data.session || !result.data.session.content_uri) {
+            throw 'api_not_exist';
+          }
+          return result;
+        } catch (err) {
+          if (err === 'api_not_exist') {
+            throw 'DMC storyboard api not exist';
+          }
           console.error('create dmc session fail', err);
-          return Promise.reject('create dmc session fail');
-        });
+          throw 'create dmc session fail';
+        }
       }
 
       _createRequestString(info) {
@@ -633,12 +664,12 @@ const VideoSessionWorker = (() => {
     const getSessionId = function() { return `session_${this.id++}`; }.bind({id: 0});
 
     let current = null;
-    const create = async ({videoInfo, videoQuality, serverType, useHLS}) => {
+    const create = async (params) => {
       if (current) {
         current.close();
         current = null;
       }
-      current = await VideoSession.create({videoInfo, videoQuality, serverType, useHLS});
+      current = await VideoSession.create(params);
       const sessionId = getSessionId();
       current[SESSION_ID] = sessionId;
 
@@ -675,11 +706,9 @@ const VideoSessionWorker = (() => {
       current = null;
     };
 
-    const storyboard = async ({info, duration}) => {
-      const result = await new StoryboardSession(info).create();
-      if (!result || !result.data || !result.data.session || !result.data.session.content_uri) {
-        return Promise.reject('DMC storyboard api not exist');
-      }
+    const storyboard = async ({videoInfo, serverType}) => {
+      const result = await StoryboardSession.create({videoInfo, serverType}).create();
+      const duration = videoInfo.duration;
       const uri = result.data.session.content_uri;
       const sbInfo = await DmcStoryboardInfoLoader.load(uri);
       for (let board of sbInfo.storyboard) {
@@ -689,8 +718,11 @@ const VideoSessionWorker = (() => {
         ));
         break; // 二番目以降は低画質
       }
-      sbInfo.duration = duration;
-      return sbInfo;
+      return {
+        ...sbInfo,
+        watchId: videoInfo.watchId,
+        duration,
+      };
     };
 
     self.onmessage = async ({command, params}) => {
@@ -731,17 +763,18 @@ const VideoSessionWorker = (() => {
     });
   };
 
-  const storyboard = async (watchId, sbSessionInfo, duration) => {
-    const cache = await StoryboardCacheDb.get(watchId);
+  const storyboard = async ({type, info}) => {
+    const videoInfo = info.toJSON();
+    const cacheId = `${videoInfo.watchId}_${type}`;
+    const cache = await StoryboardCacheDb.get(cacheId);
     if (cache) {
       return cache;
     }
-    worker = worker || workerUtil.createCrossMessageWorker(func);
-    const params = {info: sbSessionInfo, duration};
-    const sbInfo = await worker.post({command: 'storyboard', params});
-    sbInfo.watchId = watchId;
-    StoryboardCacheDb.put(watchId, sbInfo);
-    return sbInfo;
+    await initWorker();
+    const params = {videoInfo, serverType: type};
+    const result = await worker.post({command: 'storyboard', params});
+    StoryboardCacheDb.put(cacheId, result);
+    return result;
   };
 
   return {initWorker, create, storyboard};

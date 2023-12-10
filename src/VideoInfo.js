@@ -442,19 +442,19 @@ class VideoInfoModel extends JSONable {
   }
 
   get hasDomandStoryboard() {
-    return this._domandInfo && this._domandInfo.isStoryboardAvailable;
-  }
-
-  get domandStoryboardInfo() {
-    return null;
+    return this._domandInfo?.isStoryboardAvailable ?? false;
   }
 
   get hasDmcStoryboard() {
-    return this._dmcInfo && this._dmcInfo.hasStoryboard;
+    return this._dmcInfo?.hasStoryboard ?? false;
   }
 
   get dmcStoryboardInfo() {
     return this.hasDmcStoryboard ? this._dmcInfo.storyboardInfo : null;
+  }
+
+  get hasStoryboard() {
+    return this.hasDomandStoryboard || this.hasDmcStoryboard;
   }
 
   /**

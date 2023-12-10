@@ -3,15 +3,12 @@ import {VideoSessionWorker} from './VideoSessionWorker';
 //===BEGIN===
 
 const StoryboardInfoLoader = {
-  load: videoInfo => {
-    if (videoInfo.hasDomandStoryboard) {
-      return Promise.reject('currently, not supported domand storyboard');
+  load: (serverType, videoInfo) => {
+    if (serverType === 'domand' && videoInfo.hasDomandStoryboard) {
+      return VideoSessionWorker.storyboard({type: 'domand', info: videoInfo});
     }
-    if (videoInfo.hasDmcStoryboard) {
-      const watchId = videoInfo.watchId;
-      const info = videoInfo.dmcStoryboardInfo;
-      const duration = videoInfo.duration;
-      return VideoSessionWorker.storyboard(watchId, info, duration);
+    if (serverType === 'dmc' && videoInfo.hasDmcStoryboard) {
+      return VideoSessionWorker.storyboard({type: 'dmc', info: videoInfo});
     }
 
     return Promise.reject('smile storyboard api not exist');
