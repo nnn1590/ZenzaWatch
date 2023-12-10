@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description1 ZenzaWatchの上級者向け設定。変更する時だけ有効にすればOK
 // @include     *//www.nicovideo.jp/my*
-// @version     0.3.3-another.4
+// @version     0.3.3-another.5
 // @author      segabito macmoto
 // @license     public domain
 // @grant       none
@@ -968,10 +968,9 @@ const Config = (() => {
 		message: '',
 		enableVideoSession: true,
 		videoServerType: 'dmc',
-		autoDisableDmc: true, // smileのほうが高画質と思われる動画でdmcを無効にする
+		autoDisableNew: true, // dmcのほうが高画質と思われる動画でdomandを無効にする
 		dmcVideoQuality: 'auto',   // 優先する画質 auto, veryhigh, high, mid, low
-		smileVideoQuality: 'default', // default eco
-		useWellKnownPort: false, // この機能なくなったぽい (常時true相当になった)
+		domandVideoQuality: 'auto', // 優先する画質 auto, 1080p, 720, 480p, 360p, 144p
 		'video.hls.enable': true,
 		'video.hls.segmentDuration': 6000,
 		'video.hls.enableOnlyRequired': true, // hlsが必須の動画だけ有効化する
@@ -2263,9 +2262,9 @@ const cssUtil = css;
             </label>
           </div>
 
-          <div class="autoDisableDmc control toggle">
+          <div class="autoDisableNew control toggle">
             <label>
-              <input type="checkbox" class="checkbox" data-setting-name="autoDisableDmc">
+              <input type="checkbox" class="checkbox" data-setting-name="autoDisableNew">
               旧システムのほうが画質が良さそうな時は旧システムにする。(旧システム側が1280x720を超える時)
             </label>
           </div>
