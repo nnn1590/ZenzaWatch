@@ -27,9 +27,9 @@ const workerUtil = (() => {
           case 'commandResult':
             if (promises[sessionId]) {
               if (status === 'ok') {
-                  promises[sessionId].resolve(params.result);
+                promises[sessionId].resolve(params.result);
               } else {
-                promises[sessionId].reject(params.result);
+                promises[sessionId].reject(new Error(params.result));
               }
               delete promises[sessionId];
             }
@@ -230,7 +230,7 @@ const workerUtil = (() => {
                 if (status === 'ok') {
                   promises[sessionId].resolve(params.result);
                 } else {
-                  promises[sessionId].reject(params.result);
+                  promises[sessionId].reject(new Error(params.result));
                 }
                 delete promises[sessionId];
               }
