@@ -175,12 +175,13 @@ const VideoSessionWorker = (() => {
     class VideoSession {
 
       static create({serverType, ...params}) {
-        if (serverType === 'domand') {
-          return new DomandSession(params);
-        } else if (serverType === 'dmc') {
-          return new DmcSession(params);
-        } else {
-          throw new Error('Unknown server type');
+        switch (serverType) {
+          case 'domand':
+            return new DomandSession(params);
+          case 'dmc':
+            return new DmcSession(params);
+          default:
+            throw new Error('Unknown server type');
         }
       }
 
@@ -256,16 +257,36 @@ const VideoSessionWorker = (() => {
         return await this._deleteSession();
       }
 
-      get isDeleted() {
-        return !!this._isDeleted;
+      get serverType() {
+        return 'unknown';
+      }
+
+      get info() {
+        return {...this._videoSessionInfo, type: this.serverType};
+      }
+
+      set info({ url, sessionId, videoFormat, audioFormat, heartBeatUrl, deleteSessionUrl, lastResponse }) {
+        this._videoSessionInfo = {
+          url,
+          sessionId,
+          videoFormat,
+          audioFormat,
+          heartBeatUrl,
+          deleteSessionUrl,
+          lastResponse
+        };
       }
 
       get isDomand() {
-        return false;
+        return this.serverType === 'domand';
       }
 
       get isDmc() {
-        return false;
+        return this.serverType === 'dmc';
+      }
+
+      get isDeleted() {
+        return !!this._isDeleted;
       }
 
       get isAbnormallyClosed() {
@@ -276,7 +297,6 @@ const VideoSessionWorker = (() => {
     class DomandSession extends VideoSession {
       constructor(params) {
         super(params);
-        this._serverType = 'domand';
         this._expireTime = new Date();
         this._domandInfo = this._videoInfo.domandInfo;
       }
@@ -321,15 +341,14 @@ const VideoSessionWorker = (() => {
         } = this._lastResponse;
         this._lastUpdate = Date.now();
         this._expireTime = new Date(expireTime);
-        this._videoSessionInfo = {
-          type: 'domand',
+        this.info = {
           url: contentUrl,
           videoFormat: video,
           audioFormat: audio,
           lastResponse: result
         };
         console.timeEnd('create Domand session');
-        return this._videoSessionInfo;
+        return this.info;
       }
 
       async _deleteSession() {
@@ -349,8 +368,8 @@ const VideoSessionWorker = (() => {
         return this._isDeleted;
       }
 
-      get isDomand() {
-        return true;
+      get serverType() {
+        return 'domand';
       }
     }
 
@@ -358,7 +377,6 @@ const VideoSessionWorker = (() => {
       constructor(params) {
         super(params);
 
-        this._serverType = 'dmc';
         this._heartBeatInterval = DMC_HEART_BEAT_INTERVAL_MS;
         this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
         this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
@@ -404,8 +422,7 @@ const VideoSessionWorker = (() => {
               this._lastResponse = data;
 
               this._lastUpdate = Date.now();
-              this._videoSessionInfo = {
-                type: 'dmc',
+              this.info = {
                 url: session.content_uri,
                 sessionId,
                 videoFormat,
@@ -416,7 +433,7 @@ const VideoSessionWorker = (() => {
               };
               this.enableHeartBeat();
               console.timeEnd('create DMC session');
-              resolve(this._videoSessionInfo);
+              resolve(this.info);
             }).catch(err => {
               console.error('create api fail', err);
               reject(err.message || err);
@@ -430,7 +447,7 @@ const VideoSessionWorker = (() => {
       }
 
       _heartBeat() {
-        let url = this._videoSessionInfo.heartBeatUrl;
+        let url = this.info.heartBeatUrl;
         util.fetch(url, {
           method: 'post',
           dataType: 'text',
@@ -446,7 +463,7 @@ const VideoSessionWorker = (() => {
           return Promise.resolve();
         }
         this._isDeleted = true;
-        let url = this._videoSessionInfo.deleteSessionUrl;
+        let url = this.info.deleteSessionUrl;
         return new Promise(res => setTimeout(res, 3000)).then(() => {
           return util.fetch(url, {
             method: 'post',
@@ -467,8 +484,8 @@ const VideoSessionWorker = (() => {
         return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifetime * 1.2;
       }
 
-      get isDmc() {
-        return true;
+      get serverType() {
+        return 'dmc';
       }
     }
 
@@ -690,12 +707,13 @@ const VideoSessionWorker = (() => {
 
     class StoryboardSession {
       static create({serverType, ...params}) {
-        if (serverType === 'domand') {
-          return new DomandStoryboardSession(params);
-        } else if (serverType === 'dmc') {
-          return new DmcStoryboardSession(params);
-        } else {
-          throw new Error('Unknown server type');
+        switch (serverType) {
+          case 'domand':
+            return new DomandStoryboardSession(params);
+          case 'dmc':
+            return new DmcStoryboardSession(params);
+          default:
+            throw new Error('Unknown server type');
         }
       }
 
@@ -861,6 +879,7 @@ const VideoSessionWorker = (() => {
 
       // console.log('create', sessionId, current[SESSION_ID]);
       return {
+        serverType: current.serverType,
         isDomand: current.isDomand,
         isDmc: current.isDmc,
         sessionId
@@ -878,6 +897,7 @@ const VideoSessionWorker = (() => {
       }
       // console.log('getState', sessionId, current[SESSION_ID]);
       return {
+        serverType: current.serverType,
         isDomand: current.isDomand,
         isDmc: current.isDmc,
         isDeleted: current.isDeleted,
