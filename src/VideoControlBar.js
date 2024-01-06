@@ -222,13 +222,13 @@ import {WindowResizeObserver} from '../packages/lib/src/infra/Observable';
       const $select  = this._$videoServerTypeSelectMenu;
 
       const updateDomandVideoQuality = value => {
-        const $dq = $select.find('.domandVideoQuality');
+        const $dq = $select.find('.domandVideoQuality > li');
         $dq.removeClass('selected');
         $select.find('.select-domand-' + value).addClass('selected');
       };
 
       const updateDmcVideoQuality = value => {
-        const $dq = $select.find('.dmcVideoQuality');
+        const $dq = $select.find('.dmcVideoQuality > li');
         $dq.removeClass('selected');
         $select.find('.select-dmc-' + value).addClass('selected');
       };
@@ -1248,15 +1248,19 @@ util.addStyle(`
     cursor: default;
   }
 
-  .videoServerTypeSelectMenu ul {
+  .videoServerTypeSelectMenu > ul {
     margin: 2px 8px;
   }
 
-  .videoServerTypeSelectMenu li {
-    padding: 3px 4px;
+  .videoServerTypeSelectMenu > ul > li.selected:hover {
+    background: none;
   }
 
-  .videoServerTypeSelectMenu li.selected {
+  .videoServerTypeSelectMenu li:not(.selected) {
+    font-weight: initial;
+  }
+
+  .videoServerTypeSelectMenu li.selected > span {
     pointer-events: none;
     text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
   }
@@ -1264,7 +1268,6 @@ util.addStyle(`
   .videoServerTypeSelectMenu .domandVideoQuality,
   .videoServerTypeSelectMenu .dmcVideoQuality {
     font-size: 80%;
-    padding-left: 28px;
   }
 
   .videoServerTypeSelectMenu .currentVideoQuality {
@@ -1273,19 +1276,26 @@ util.addStyle(`
     text-align: center;
   }
 
-  .videoServerTypeSelectMenu .dmcVideoQuality.selected     span:before,
-  .videoServerTypeSelectMenu .domandVideoQuality.selected   span:before {
-    left: 22px;
-    font-size: 80%;
+  .videoServerTypeSelectMenu .domandVideoQuality > li,
+  .videoServerTypeSelectMenu .dmcVideoQuality > li {
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
-  .videoServerTypeSelectMenu .currentVideoQuality.selected   span:before {
-    display: none;
+  .videoServerTypeSelectMenu .domandVideoQuality > li > span,
+  .videoServerTypeSelectMenu .dmcVideoQuality > li > span {
+    margin-left: 12px;
+  }
+
+  .videoServerTypeSelectMenu .domandVideoQuality > li.selected > span::before,
+  .videoServerTypeSelectMenu .dmcVideoQuality > li.selected > span::before {
+    left: 12px;
   }
 
   /* dmcを使用不能の時はdmc選択とdmc画質選択を薄く */
   .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc,
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .dmcVideoQuality,
   .zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
     opacity: 0.4;
     pointer-events: none;
@@ -1294,8 +1304,7 @@ util.addStyle(`
   .zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
     display: none;
   }
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc span:before,
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .dmcVideoQuality       span:before{
+  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc span:before {
     display: none !important;
   }
   .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType {
@@ -1304,10 +1313,10 @@ util.addStyle(`
 
 
   /* 選択していないシステムの画質選択を隠す */
-  .is-domand-playing .dmcVideoQuality,
-  .is-domand-playing .serverType.select-server-dmc .currentVideoQuality,
-  .is-dmc-playing .domandVideoQuality,
-  .is-dmc-playing .serverType.select-server-domand .currentVideoQuality {
+  .videoServerTypeMenu:not(.is-domand-playing) .domandVideoQuality,
+  .videoServerTypeMenu:not(.is-domand-playing) .serverType.select-server-domand .currentVideoQuality,
+  .videoServerTypeMenu:not(.is-dmc-playing) .dmcVideoQuality,
+  .videoServerTypeMenu:not(.is-dmc-playing) .serverType.select-server-dmc .currentVideoQuality {
     display: none;
   }
 
@@ -1416,11 +1425,6 @@ util.addStyle(`
 
   .fullscreenControlBarModeSelectMenu li {
     padding: 3px 4px;
-  }
-
-  .videoServerTypeSelectMenu li.selected {
-    pointer-events: none;
-    text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
   }
 
   .fullscreenControlBarModeMenu li:focus-within,
@@ -1593,31 +1597,30 @@ util.addStyle(`
               <div class="triangle"></div>
               <p class="caption">動画サーバー・画質</p>
               <ul>
-
-                <li class="serverType select-server-domand" data-command="update-videoServerType" data-param="domand">
+                <li class="serverType select-server-domand selected" data-command="update-videoServerType" data-param="domand">
                   <span>新システムを使用</span>
                   <p class="currentVideoQuality"></p>
+                  <ul class="domandVideoQuality">
+                    <li class="select-domand-auto"  data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span><//li>
+                    <li class="select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span><//li>
+                    <li class="select-domand-720p"  data-command="update-domandVideoQuality" data-param="720p"><span>720p</span><//li>
+                    <li class="select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span><//li>
+                    <li class="select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span><//li>
+                    <li class="select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span><//li>
+                  </ul>
                 </li>
-
-
-                <li class="domandVideoQuality selected select-domand-auto" data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span></li>
-                <li class="domandVideoQuality selected select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span></li>
-                <li class="domandVideoQuality selected select-domand-720p" data-command="update-domandVideoQuality" data-param="720p"><span>720p</span></li>
-                <li class="domandVideoQuality selected select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span></li>
-                <li class="domandVideoQuality selected select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span></li>
-                <li class="domandVideoQuality selected select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span></li>
 
                 <li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
                   <span>旧システムを使用</span>
                   <p class="currentVideoQuality"></p>
+                  <ul class="dmcVideoQuality">
+                    <li class="select-dmc-auto"     data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span><//li>
+                    <li class="select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span><//li>
+                    <li class="select-dmc-high"     data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span><//li>
+                    <li class="select-dmc-mid"      data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span><//li>
+                    <li class="select-dmc-low"      data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span><//li>
+                  </ul>
                 </li>
-
-
-                <li class="dmcVideoQuality selected select-dmc-auto" data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span></li>
-                <li class="dmcVideoQuality selected select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span></li>
-                <li class="dmcVideoQuality selected select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
-                <li class="dmcVideoQuality selected select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
-                <li class="dmcVideoQuality selected select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
              </ul>
             </div>
           </div>

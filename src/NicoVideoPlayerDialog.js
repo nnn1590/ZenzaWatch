@@ -2120,7 +2120,7 @@ class NicoVideoPlayerDialog extends Emitter {
       videoInfo.setCurrentVideo(sessionInfo.url);
       this.emit('videoServerType', sessionInfo.type, sessionInfo, videoInfo);
     } catch (e) {
-      this._onVideoSessionFail(e);
+      this._onVideoSessionFail(this._videoSession.serverType, e);
     }
     this._state.videoInfo = videoInfo;
 
@@ -2181,10 +2181,11 @@ class NicoVideoPlayerDialog extends Emitter {
       window.setTimeout(() => this.playNextVideo(), 3000);
     }
   }
-  _onVideoSessionFail(result) {
-    window.console.error('dmc fail', result);
+  _onVideoSessionFail(serverType, result) {
+    const server = serverType === 'dmc' ? 'dmc.nico' : serverType;
+    window.console.error(`${server} fail`, result);
     this._setErrorMessage(
-      `動画の読み込みに失敗しました(dmc.nico) ${result && result.message || ''}`, this._watchId);
+      `動画の読み込みに失敗しました(${server}) ${result && result.message || ''}`, this._watchId);
     this._state.setState({isError: true, isLoading: false});
     if (this.isPlaylistEnable) {
       window.setTimeout(() => this.playNextVideo(), 3000);
