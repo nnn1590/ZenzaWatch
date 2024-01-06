@@ -1297,10 +1297,6 @@ util.addStyle(`
     font-size: 80%;
   }
 
-  .videoServerTypeSelectMenu .currentVideoQuality.selected   span:before {
-    display: none;
-  }
-
   /* dmcを使用不能の時はdmc選択とdmc画質選択を薄く */
   .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc,
   .zenzaPlayerContainer:not(.is-dmcAvailable) .dmcVideoQuality,
@@ -1322,10 +1318,10 @@ util.addStyle(`
 
 
   /* 選択していないシステムの画質選択を隠す */
-  .is-domand-playing .dmcVideoQuality,
-  .is-domand-playing .serverType.select-server-dmc .currentVideoQuality,
-  .is-dmc-playing .domandVideoQuality,
-  .is-dmc-playing .serverType.select-server-domand .currentVideoQuality {
+  .videoServerTypeMenu:not(.is-domand-playing) .domandVideoQuality,
+  .videoServerTypeMenu:not(.is-domand-playing) .serverType.select-server-domand .currentVideoQuality,
+  .videoServerTypeMenu:not(.is-dmc-playing) .dmcVideoQuality,
+  .videoServerTypeMenu:not(.is-dmc-playing) .serverType.select-server-dmc .currentVideoQuality {
     display: none;
   }
 
@@ -1630,12 +1626,11 @@ util.addStyle(`
                   <p class="currentVideoQuality"></p>
                 </li>
 
-
-                <li class="dmcVideoQuality selected select-dmc-auto" data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span></li>
-                <li class="dmcVideoQuality selected select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span></li>
-                <li class="dmcVideoQuality selected select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
-                <li class="dmcVideoQuality selected select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
-                <li class="dmcVideoQuality selected select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
+                <li class="dmcVideoQuality select-dmc-auto" data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span></li>
+                <li class="dmcVideoQuality select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span></li>
+                <li class="dmcVideoQuality select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
+                <li class="dmcVideoQuality select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
+                <li class="dmcVideoQuality select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
              </ul>
             </div>
           </div>
