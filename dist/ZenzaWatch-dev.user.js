@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.34
+// @version        2.6.3-fix-playlist.35
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.34';
+    var VER = '2.6.3-fix-playlist.35';
     const ENV = 'DEV';
 
 
@@ -1742,7 +1742,7 @@ CONSTANT.COMMON_CSS = `
 	.zenzaPopupMenu ul {
 		padding: 0;
 	}
-	.zenzaPopupMenu ul li {
+	.zenzaPopupMenu ul > li {
 		position: relative;
 		margin: 2px 4px;
 		white-space: nowrap;
@@ -1751,27 +1751,27 @@ CONSTANT.COMMON_CSS = `
 		list-style-type: none;
 		float: inherit;
 	}
-	.zenzaPopupMenu ul li + li {
+	.zenzaPopupMenu ul > li + li {
 		border-top: 1px dotted var(--item-border-color);
 	}
-	.zenzaPopupMenu li.selected {
+	.zenzaPopupMenu ul > li.selected {
 		font-weight: bolder;
 	}
-	.zenzaPopupMenu ul li:hover {
+	.zenzaPopupMenu ul > li:hover {
 		background: #663;
 	}
-	.zenzaPopupMenu ul li.separator {
+	.zenzaPopupMenu ul > li.separator {
 		border: 1px outset;
 		height: 2px;
 		width: 90%;
 	}
-	.zenzaPopupMenu li span {
+	.zenzaPopupMenu li > span {
 		box-sizing: border-box;
 		margin-left: 8px;
 		display: inline-block;
 		cursor: pointer;
 	}
-	.zenzaPopupMenu ul li.selected span:before {
+	.zenzaPopupMenu ul > li.selected > span:before {
 		content: '✔';
 		left: 0;
 		position: absolute;
@@ -12170,12 +12170,12 @@ class Storyboard extends Emitter {
 			const $button = this._$videoServerTypeMenu;
 			const $select  = this._$videoServerTypeSelectMenu;
 			const updateDomandVideoQuality = value => {
-				const $dq = $select.find('.domandVideoQuality');
+				const $dq = $select.find('.domandVideoQuality > li');
 				$dq.removeClass('selected');
 				$select.find('.select-domand-' + value).addClass('selected');
 			};
 			const updateDmcVideoQuality = value => {
-				const $dq = $select.find('.dmcVideoQuality');
+				const $dq = $select.find('.dmcVideoQuality > li');
 				$dq.removeClass('selected');
 				$select.find('.select-dmc-' + value).addClass('selected');
 			};
@@ -13110,37 +13110,45 @@ util.addStyle(`
 		text-shadow: none !important;
 		cursor: default;
 	}
-	.videoServerTypeSelectMenu ul {
+	.videoServerTypeSelectMenu > ul {
 		margin: 2px 8px;
 	}
-	.videoServerTypeSelectMenu li {
-		padding: 3px 4px;
+	.videoServerTypeSelectMenu > ul > li.selected:hover {
+		background: none;
 	}
-	.videoServerTypeSelectMenu li.selected {
+	.videoServerTypeSelectMenu li:not(.selected) {
+		font-weight: initial;
+	}
+	.videoServerTypeSelectMenu li.selected > span {
 		pointer-events: none;
 		text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
 	}
 	.videoServerTypeSelectMenu .domandVideoQuality,
 	.videoServerTypeSelectMenu .dmcVideoQuality {
 		font-size: 80%;
-		padding-left: 28px;
 	}
 	.videoServerTypeSelectMenu .currentVideoQuality {
 		color: #ccf;
 		font-size: 80%;
 		text-align: center;
 	}
-	.videoServerTypeSelectMenu .dmcVideoQuality.selected     span:before,
-	.videoServerTypeSelectMenu .domandVideoQuality.selected   span:before {
-		left: 22px;
-		font-size: 80%;
+	.videoServerTypeSelectMenu .domandVideoQuality > li,
+	.videoServerTypeSelectMenu .dmcVideoQuality > li {
+		margin-right: 0;
+		margin-left: 0;
+		padding-right: 12px;
+		padding-left: 12px;
 	}
-	.videoServerTypeSelectMenu .currentVideoQuality.selected   span:before {
-		display: none;
+	.videoServerTypeSelectMenu .domandVideoQuality > li > span,
+	.videoServerTypeSelectMenu .dmcVideoQuality > li > span {
+		margin-left: 12px;
+	}
+	.videoServerTypeSelectMenu .domandVideoQuality > li.selected > span::before,
+	.videoServerTypeSelectMenu .dmcVideoQuality > li.selected > span::before {
+		left: 12px;
 	}
 	/* dmcを使用不能の時はdmc選択とdmc画質選択を薄く */
 	.zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc,
-	.zenzaPlayerContainer:not(.is-dmcAvailable) .dmcVideoQuality,
 	.zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
 		opacity: 0.4;
 		pointer-events: none;
@@ -13149,18 +13157,17 @@ util.addStyle(`
 	.zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
 		display: none;
 	}
-	.zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc span:before,
-	.zenzaPlayerContainer:not(.is-dmcAvailable) .dmcVideoQuality       span:before{
+	.zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc span:before {
 		display: none !important;
 	}
 	.zenzaPlayerContainer:not(.is-dmcAvailable) .serverType {
 		pointer-events: none;
 	}
 	/* 選択していないシステムの画質選択を隠す */
-	.is-domand-playing .dmcVideoQuality,
-	.is-domand-playing .serverType.select-server-dmc .currentVideoQuality,
-	.is-dmc-playing .domandVideoQuality,
-	.is-dmc-playing .serverType.select-server-domand .currentVideoQuality {
+	.videoServerTypeMenu:not(.is-domand-playing) .domandVideoQuality,
+	.videoServerTypeMenu:not(.is-domand-playing) .serverType.select-server-domand .currentVideoQuality,
+	.videoServerTypeMenu:not(.is-dmc-playing) .dmcVideoQuality,
+	.videoServerTypeMenu:not(.is-dmc-playing) .serverType.select-server-dmc .currentVideoQuality {
 		display: none;
 	}
 	@media screen and (max-width: 768px) {
@@ -13256,10 +13263,6 @@ util.addStyle(`
 	}
 	.fullscreenControlBarModeSelectMenu li {
 		padding: 3px 4px;
-	}
-	.videoServerTypeSelectMenu li.selected {
-		pointer-events: none;
-		text-shadow: 0 0 4px #99f, 0 0 8px #99f !important;
 	}
 	.fullscreenControlBarModeMenu li:focus-within,
 	body[data-fullscreen-control-bar-mode="auto"] .fullscreenControlBarModeMenu [data-param="auto"],
@@ -13409,25 +13412,29 @@ util.addStyle(`
 							<div class="triangle"></div>
 							<p class="caption">動画サーバー・画質</p>
 							<ul>
-								<li class="serverType select-server-domand" data-command="update-videoServerType" data-param="domand">
+								<li class="serverType select-server-domand selected" data-command="update-videoServerType" data-param="domand">
 									<span>新システムを使用</span>
 									<p class="currentVideoQuality"></p>
+									<ul class="domandVideoQuality">
+										<li class="select-domand-auto"  data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span><//li>
+										<li class="select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span><//li>
+										<li class="select-domand-720p"  data-command="update-domandVideoQuality" data-param="720p"><span>720p</span><//li>
+										<li class="select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span><//li>
+										<li class="select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span><//li>
+										<li class="select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span><//li>
+									</ul>
 								</li>
-								<li class="domandVideoQuality selected select-domand-auto" data-command="update-domandVideoQuality" data-param="auto"><span>自動(auto)</span></li>
-								<li class="domandVideoQuality selected select-domand-1080p" data-command="update-domandVideoQuality" data-param="1080p"><span>1080p 優先</span></li>
-								<li class="domandVideoQuality selected select-domand-720p" data-command="update-domandVideoQuality" data-param="720p"><span>720p</span></li>
-								<li class="domandVideoQuality selected select-domand-480p"  data-command="update-domandVideoQuality" data-param="480p"><span>480p</span></li>
-								<li class="domandVideoQuality selected select-domand-360p"  data-command="update-domandVideoQuality" data-param="360p"><span>360p</span></li>
-								<li class="domandVideoQuality selected select-domand-144p"  data-command="update-domandVideoQuality" data-param="144p"><span>144p</span></li>
 								<li class="serverType select-server-dmc" data-command="update-videoServerType" data-param="dmc">
 									<span>旧システムを使用</span>
 									<p class="currentVideoQuality"></p>
+									<ul class="dmcVideoQuality">
+										<li class="select-dmc-auto"     data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span><//li>
+										<li class="select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span><//li>
+										<li class="select-dmc-high"     data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span><//li>
+										<li class="select-dmc-mid"      data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span><//li>
+										<li class="select-dmc-low"      data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span><//li>
+									</ul>
 								</li>
-								<li class="dmcVideoQuality selected select-dmc-auto" data-command="update-dmcVideoQuality" data-param="auto"><span>自動(auto)</span></li>
-								<li class="dmcVideoQuality selected select-dmc-veryhigh" data-command="update-dmcVideoQuality" data-param="veryhigh"><span>超(1080) 優先</span></li>
-								<li class="dmcVideoQuality selected select-dmc-high" data-command="update-dmcVideoQuality" data-param="high"><span>高(720) 優先</span></li>
-								<li class="dmcVideoQuality selected select-dmc-mid"  data-command="update-dmcVideoQuality" data-param="mid"><span>中(480-540)</span></li>
-								<li class="dmcVideoQuality selected select-dmc-low"  data-command="update-dmcVideoQuality" data-param="low"><span>低(360)</span></li>
 						</ul>
 						</div>
 					</div>
@@ -25093,7 +25100,7 @@ class NicoVideoPlayerDialog extends Emitter {
 			videoInfo.setCurrentVideo(sessionInfo.url);
 			this.emit('videoServerType', sessionInfo.type, sessionInfo, videoInfo);
 		} catch (e) {
-			this._onVideoSessionFail(e);
+			this._onVideoSessionFail(this._videoSession.serverType, e);
 		}
 		this._state.videoInfo = videoInfo;
 		this.loadComment(videoInfo.msgInfo);
@@ -25150,10 +25157,11 @@ class NicoVideoPlayerDialog extends Emitter {
 			window.setTimeout(() => this.playNextVideo(), 3000);
 		}
 	}
-	_onVideoSessionFail(result) {
-		window.console.error('dmc fail', result);
+	_onVideoSessionFail(serverType, result) {
+		const server = serverType === 'dmc' ? 'dmc.nico' : serverType;
+		window.console.error(`${server} fail`, result);
 		this._setErrorMessage(
-			`動画の読み込みに失敗しました(dmc.nico) ${result && result.message || ''}`, this._watchId);
+			`動画の読み込みに失敗しました(${server}) ${result && result.message || ''}`, this._watchId);
 		this._state.setState({isError: true, isLoading: false});
 		if (this.isPlaylistEnable) {
 			window.setTimeout(() => this.playNextVideo(), 3000);
@@ -31519,9 +31527,9 @@ const workerUtil = (() => {
 					case 'commandResult':
 						if (promises[sessionId]) {
 							if (status === 'ok') {
-									promises[sessionId].resolve(params.result);
+								promises[sessionId].resolve(params.result);
 							} else {
-								promises[sessionId].reject(params.result);
+								promises[sessionId].reject(new Error(params.result));
 							}
 							delete promises[sessionId];
 						}
@@ -31703,7 +31711,7 @@ const workerUtil = (() => {
 								if (status === 'ok') {
 									promises[sessionId].resolve(params.result);
 								} else {
-									promises[sessionId].reject(params.result);
+									promises[sessionId].reject(new Error(params.result));
 								}
 								delete promises[sessionId];
 							}
@@ -32413,12 +32421,13 @@ const VideoSessionWorker = (() => {
 		}
 		class VideoSession {
 			static create({serverType, ...params}) {
-				if (serverType === 'domand') {
-					return new DomandSession(params);
-				} else if (serverType === 'dmc') {
-					return new DmcSession(params);
-				} else {
-					throw new Error('Unknown server type');
+				switch (serverType) {
+					case 'domand':
+						return new DomandSession(params);
+					case 'dmc':
+						return new DmcSession(params);
+					default:
+						throw new Error('Unknown server type');
 				}
 			}
 			constructor({videoInfo, videoQuality, useHLS}) {
@@ -32480,14 +32489,31 @@ const VideoSessionWorker = (() => {
 				this.disableHeartBeat();
 				return await this._deleteSession();
 			}
-			get isDeleted() {
-				return !!this._isDeleted;
+			get serverType() {
+				return 'unknown';
+			}
+			get info() {
+				return {...this._videoSessionInfo, type: this.serverType};
+			}
+			set info({ url, sessionId, videoFormat, audioFormat, heartBeatUrl, deleteSessionUrl, lastResponse }) {
+				this._videoSessionInfo = {
+					url,
+					sessionId,
+					videoFormat,
+					audioFormat,
+					heartBeatUrl,
+					deleteSessionUrl,
+					lastResponse
+				};
 			}
 			get isDomand() {
-				return false;
+				return this.serverType === 'domand';
 			}
 			get isDmc() {
-				return false;
+				return this.serverType === 'dmc';
+			}
+			get isDeleted() {
+				return !!this._isDeleted;
 			}
 			get isAbnormallyClosed() {
 				return this._isAbnormallyClosed;
@@ -32496,7 +32522,6 @@ const VideoSessionWorker = (() => {
 		class DomandSession extends VideoSession {
 			constructor(params) {
 				super(params);
-				this._serverType = 'domand';
 				this._expireTime = new Date();
 				this._domandInfo = this._videoInfo.domandInfo;
 			}
@@ -32539,15 +32564,14 @@ const VideoSessionWorker = (() => {
 				} = this._lastResponse;
 				this._lastUpdate = Date.now();
 				this._expireTime = new Date(expireTime);
-				this._videoSessionInfo = {
-					type: 'domand',
+				this.info = {
 					url: contentUrl,
 					videoFormat: video,
 					audioFormat: audio,
 					lastResponse: result
 				};
 				console.timeEnd('create Domand session');
-				return this._videoSessionInfo;
+				return this.info;
 			}
 			async _deleteSession() {
 				if (this._isDeleted) {
@@ -32564,14 +32588,13 @@ const VideoSessionWorker = (() => {
 				}
 				return this._isDeleted;
 			}
-			get isDomand() {
-				return true;
+			get serverType() {
+				return 'domand';
 			}
 		}
 		class DmcSession extends VideoSession {
 			constructor(params) {
 				super(params);
-				this._serverType = 'dmc';
 				this._heartBeatInterval = DMC_HEART_BEAT_INTERVAL_MS;
 				this._onHeartBeatSuccess = this._onHeartBeatSuccess.bind(this);
 				this._onHeartBeatFail = this._onHeartBeatFail.bind(this);
@@ -32611,8 +32634,7 @@ const VideoSessionWorker = (() => {
 								`${baseUrl}/${sessionId}?_format=json&_method=DELETE`;
 							this._lastResponse = data;
 							this._lastUpdate = Date.now();
-							this._videoSessionInfo = {
-								type: 'dmc',
+							this.info = {
 								url: session.content_uri,
 								sessionId,
 								videoFormat,
@@ -32623,7 +32645,7 @@ const VideoSessionWorker = (() => {
 							};
 							this.enableHeartBeat();
 							console.timeEnd('create DMC session');
-							resolve(this._videoSessionInfo);
+							resolve(this.info);
 						}).catch(err => {
 							console.error('create api fail', err);
 							reject(err.message || err);
@@ -32635,7 +32657,7 @@ const VideoSessionWorker = (() => {
 					this._dmcInfo.protocols.includes('hls');
 			}
 			_heartBeat() {
-				let url = this._videoSessionInfo.heartBeatUrl;
+				let url = this.info.heartBeatUrl;
 				util.fetch(url, {
 					method: 'post',
 					dataType: 'text',
@@ -32650,7 +32672,7 @@ const VideoSessionWorker = (() => {
 					return Promise.resolve();
 				}
 				this._isDeleted = true;
-				let url = this._videoSessionInfo.deleteSessionUrl;
+				let url = this.info.deleteSessionUrl;
 				return new Promise(res => setTimeout(res, 3000)).then(() => {
 					return util.fetch(url, {
 						method: 'post',
@@ -32668,8 +32690,8 @@ const VideoSessionWorker = (() => {
 			get isDeleted() {
 				return !!this._isDeleted || (Date.now() - this._lastUpdate) > this._heartbeatLifetime * 1.2;
 			}
-			get isDmc() {
-				return true;
+			get serverType() {
+				return 'dmc';
 			}
 		}
 		class StoryboardInfoLoader {
@@ -32866,12 +32888,13 @@ const VideoSessionWorker = (() => {
 		}
 		class StoryboardSession {
 			static create({serverType, ...params}) {
-				if (serverType === 'domand') {
-					return new DomandStoryboardSession(params);
-				} else if (serverType === 'dmc') {
-					return new DmcStoryboardSession(params);
-				} else {
-					throw new Error('Unknown server type');
+				switch (serverType) {
+					case 'domand':
+						return new DomandStoryboardSession(params);
+					case 'dmc':
+						return new DmcStoryboardSession(params);
+					default:
+						throw new Error('Unknown server type');
 				}
 			}
 			constructor({videoInfo}) {
@@ -33019,6 +33042,7 @@ const VideoSessionWorker = (() => {
 			const sessionId = getSessionId();
 			current[SESSION_ID] = sessionId;
 			return {
+				serverType: current.serverType,
 				isDomand: current.isDomand,
 				isDmc: current.isDmc,
 				sessionId
@@ -33032,6 +33056,7 @@ const VideoSessionWorker = (() => {
 				return {};
 			}
 			return {
+				serverType: current.serverType,
 				isDomand: current.isDomand,
 				isDmc: current.isDmc,
 				isDeleted: current.isDeleted,
