@@ -91,6 +91,7 @@ const {ThreadLoader} = (() => {
     async _load(msgInfo, options = {}) {
       const {
         params,
+        server,
         threadKey
       } = msgInfo.nvComment;
 
@@ -114,7 +115,7 @@ const {ThreadLoader} = (() => {
         packet.additionals.when = msgInfo.when;
       }
 
-      const url = 'https://nvcomment.nicovideo.jp/v1/threads';
+      const url = new URL('/v1/threads', server);
       console.log('load threads...', url, packet);
       try {
         const { meta, data } = await netUtil.fetch(url, {
@@ -202,7 +203,7 @@ const {ThreadLoader} = (() => {
         threadId,
         language
       } = msgInfo.threadInfo;
-      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/comments`
+      const url = new URL(`/v1/threads/${threadId}/comments`, msgInfo.nvComment.server);
       const { postKey } = await this.getPostKey(threadId, { language });
 
       const packet = JSON.stringify({
@@ -271,7 +272,7 @@ const {ThreadLoader} = (() => {
         threadId,
         language
       } = msgInfo.threadInfo;
-      const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/nicorus`;
+      const url = new URL(`/v1/threads/${threadId}/nicorus`, msgInfo.nvComment.server);
       const { nicoruKey } = await this.getNicoruKey(threadId, { language });
       const packet = JSON.stringify({
         content: chat.text,
