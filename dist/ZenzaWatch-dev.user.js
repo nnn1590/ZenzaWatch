@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.35
+// @version        2.6.3-fix-playlist.36
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.35';
+    var VER = '2.6.3-fix-playlist.36';
     const ENV = 'DEV';
 
 
@@ -8773,6 +8773,7 @@ const {ThreadLoader} = (() => {
 		async _load(msgInfo, options = {}) {
 			const {
 				params,
+				server,
 				threadKey
 			} = msgInfo.nvComment;
 			const packet = {
@@ -8791,7 +8792,7 @@ const {ThreadLoader} = (() => {
 			if (msgInfo.when > 0) {
 				packet.additionals.when = msgInfo.when;
 			}
-			const url = 'https://nvcomment.nicovideo.jp/v1/threads';
+			const url = new URL('/v1/threads', server);
 			console.log('load threads...', url, packet);
 			try {
 				const { meta, data } = await netUtil.fetch(url, {
@@ -8867,7 +8868,7 @@ const {ThreadLoader} = (() => {
 				threadId,
 				language
 			} = msgInfo.threadInfo;
-			const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/comments`
+			const url = new URL(`/v1/threads/${threadId}/comments`, msgInfo.nvComment.server);
 			const { postKey } = await this.getPostKey(threadId, { language });
 			const packet = JSON.stringify({
 				body: text,
@@ -8932,7 +8933,7 @@ const {ThreadLoader} = (() => {
 				threadId,
 				language
 			} = msgInfo.threadInfo;
-			const url = `https://nvcomment.nicovideo.jp/v1/threads/${threadId}/nicorus`;
+			const url = new URL(`/v1/threads/${threadId}/nicorus`, msgInfo.nvComment.server);
 			const { nicoruKey } = await this.getNicoruKey(threadId, { language });
 			const packet = JSON.stringify({
 				content: chat.text,
