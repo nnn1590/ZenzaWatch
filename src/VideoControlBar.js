@@ -1312,21 +1312,18 @@ util.addStyle(`
     left: 12px;
   }
 
-  /* dmcを使用不能の時はdmc選択とdmc画質選択を薄く */
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc,
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
+  /* domandを使用不能の時はdomand画質選択を薄く */
+  .zenzaPlayerContainer:not(.is-domandAvailable) .serverType.select-server-domand {
     opacity: 0.4;
     pointer-events: none;
     text-shadow: none !important;
   }
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .currentVideoQuality {
-    display: none;
-  }
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc span:before {
-    display: none !important;
-  }
-  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType {
+
+  /* dmcを使用不能の時はdmc画質選択を薄く */
+  .zenzaPlayerContainer:not(.is-dmcAvailable) .serverType.select-server-dmc {
+    opacity: 0.4;
     pointer-events: none;
+    text-shadow: none !important;
   }
 
 
