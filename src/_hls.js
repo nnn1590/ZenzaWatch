@@ -15,10 +15,6 @@
 // @match          *://site.nicovideo.jp/*
 // @match          *://anime.nicovideo.jp/*
 // @match          https://www.upload.nicovideo.jp/niconico-garage/video/*
-// @match          https://www.google.co.jp/search*
-// @match          https://www.google.com/search*
-// @match          https://*.bing.com/search*
-// @match          https://feedly.com/*
 // @exclude        *://ads.nicovideo.jp/*
 // @exclude        *://www.nicovideo.jp/watch/*?edit=*
 // @exclude        *://ch.nicovideo.jp/tool/*
