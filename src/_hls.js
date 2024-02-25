@@ -14,8 +14,8 @@
 // @match          *://*.nicovideo.jp/smile*
 // @match          *://site.nicovideo.jp/*
 // @match          *://anime.nicovideo.jp/*
+// @match          https://www.upload.nicovideo.jp/niconico-garage/video/*
 // @exclude        *://ads.nicovideo.jp/*
-// @exclude        *://www.upload.nicovideo.jp/*
 // @exclude        *://www.nicovideo.jp/watch/*?edit=*
 // @exclude        *://ch.nicovideo.jp/tool/*
 // @exclude        *://flapi.nicovideo.jp/*
