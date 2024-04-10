@@ -1692,6 +1692,16 @@ class NicoVideoPlayerDialog extends Emitter {
       case 'filter.fork0':
       case 'filter.fork1':
       case 'filter.fork2':
+      case 'filter.defaultThread':
+      case 'filter.ownerThread':
+      case 'filter.communityThread':
+      case 'filter.nicosThread':
+      case 'filter.easyThread':
+      case 'filter.extraDefaultThread':
+      case 'filter.extraOwnerThread':
+      case 'filter.extraCommunityThread':
+      case 'filter.extraNicosThread':
+      case 'filter.extraEasyThread':
       case 'removeNgMatchedUser':
         filter[key.replace(/^.*\./, '')] = value;
         break;
