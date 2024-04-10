@@ -160,13 +160,9 @@ const VideoInfoLoader = (function () {
     const hasLargeThumbnail = nicoUtil.hasLargeThumbnail(videoId);
     const csrfToken = null;
     const watchAuthKey = null;
-    layers.forEach(layer => {
-      layer.threadIds.forEach(({id, fork}) => {
-        threads.forEach(thread => {
-          if (thread.id === id && fork === 0) {
-            thread.layer = layer;
-          }
-        });
+    threads.forEach(thread => {
+      thread.layer = layers.find(({threadIds}) => {
+        return threadIds.some(({id, fork}) => id === thread.id && fork === thread.fork);
       });
     });
     const resumeInfo = (() => {
