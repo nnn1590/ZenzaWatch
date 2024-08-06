@@ -34,15 +34,49 @@ const START_PAGE_QUERY = 'hoge=fuga';
 const {initialize} = (() => {
 //@require HoverMenu
   // GINZAを置き換えるべきか？の判定
-  const isOverrideGinza = () => {
-    // GINZAで視聴のリンクできた場合はfalse
+  const overrideGinza = (dialog, query) => {
+    // GINZAで視聴のリンクできた場合はスキップ
     if (window.name === 'watchGinza') {
+      window.name = '';
+      return;
+    }
+
+    if (!Config.props.overrideGinza) {
+      return
+    }
+
+    initializeGinzaSlayer(dialog, query);
+
+    const video = document.querySelector('.grid-area_\\[player\\] video');
+
+    // 再生を無理やり止める
+    video.addEventListener('play', () => {
+      if (!document.body.classList.contains('showNicoVideoPlayerDialog')) return;
+
+      // 画面モードが横か小のときには止めない
+      if (/(^|[^\w])zenzaScreenMode_(small|sideView)([^\w]|$)/.test(document.body.className)) return;
+      video.pause();
+    });
+    video.pause();
+  };
+
+  const isWatchPage = async () => {
+    await uq.complete();
+
+    // `document.readyState` が `"complete"` になってても `<script>` は取れないみたいなので一瞬待つ
+    await util.sleep(200);
+
+    const ld = document.querySelectorAll('script[type="application/ld+json"]');
+
+    if (ld.length === 0) {
       return false;
     }
-    // GINZAの代わりに起動する設定、かつZenzaで再生可能な動画はtrue
-    // nmmやrtmpeの動画だとfalseになる
-    if (Config.props.overrideGinza && nicoUtil.isZenzaPlayableVideo()) {
-      return true;
+
+    for (const d of ld.values()) {
+      const json = JSON.parse(d.textContent);
+      if (json['@type'] === 'VideoObject') {
+        return true;
+      }
     }
 
     return false;
@@ -76,9 +110,7 @@ const {initialize} = (() => {
     const query = textUtil.parseQuery(START_PAGE_QUERY);
 
     await uq.ready(); // DOMContentLoaded
-    const isWatch = util.isGinzaWatchUrl() &&
-      (!!document.getElementById('watchAPIDataContainer') ||
-        !!document.getElementById('js-initial-watch-data'));
+    const isWatch = util.isGinzaWatchUrl() && await isWatchPage();
 
     // migrate comment language
     if (typeof Config.props.commentLanguage === 'string') {
@@ -96,15 +128,8 @@ const {initialize} = (() => {
     const dialog = initializeDialogPlayer(Config);
     hoverMenu.setPlayer(dialog);
 
-
-    // watchページか？
     if (isWatch) {
-      if (isOverrideGinza()) {
-        initializeGinzaSlayer(dialog, query);
-      }
-      if (window.name === 'watchGinza') {
-        window.name = '';
-      }
+      overrideGinza(dialog, query);
     }
 
     initializeMessage(dialog);
