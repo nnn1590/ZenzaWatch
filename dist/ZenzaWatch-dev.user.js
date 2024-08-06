@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.40
+// @version        2.6.3-fix-playlist.41
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.40';
+    var VER = '2.6.3-fix-playlist.41';
     const ENV = 'DEV';
 
 
@@ -2481,39 +2481,6 @@ isLoginLegacy: () => {
 		window.open(url, '_blank', 'width=550, height=480, left=100, top50, personalbar=0, toolbar=0, scrollbars=1, sizable=1', 0);
 	},
 	isGinzaWatchUrl: url => /^https?:\/\/www\.nicovideo\.jp\/watch\//.test(url || location.href),
-	getPlayerVer: () => {
-		if (document.getElementById('js-initial-watch-data')) {
-			return 'html5';
-		}
-		if (document.getElementById('watchAPIDataContainer')) {
-			return 'flash';
-		}
-		return 'unknown';
-	},
-	isZenzaPlayableVideo: () => {
-		try {
-			if (nicoUtil.getPlayerVer() === 'html5') {
-				return true;
-			}
-			const watchApiData = JSON.parse(document.querySelector('#watchAPIDataContainer').textContent);
-			const flvInfo = textUtil.parseQuery(
-				decodeURIComponent(watchApiData.flashvars.flvInfo)
-			);
-			const dmcInfo = JSON.parse(
-				decodeURIComponent(watchApiData.flashvars.dmcInfo || '{}')
-			);
-			const videoUrl = flvInfo.url ? flvInfo.url : '';
-			const isDmc = dmcInfo && dmcInfo.time;
-			if (isDmc) {
-				return true;
-			}
-			const isSwf = /\/smile\?s=/.test(videoUrl);
-			const isRtmp = (videoUrl.indexOf('rtmp') === 0);
-			return (isSwf || isRtmp) ? false : true;
-		} catch (e) {
-			return false;
-		}
-	},
 	getNicoHistory: window.decodeURIComponent(document.cookie.replace(/^.*(nicohistory[^;+]).*?/, '')),
 	getMypageVer: () => document.querySelector('#js-initial-userpage-data') ? 'spa' : 'legacy'
 };
@@ -30595,12 +30562,35 @@ class HoverMenu {
 		});
 	}
 }
-	const isOverrideGinza = () => {
+	const overrideGinza = (dialog, query) => {
 		if (window.name === 'watchGinza') {
+			window.name = '';
+			return;
+		}
+		if (!Config.props.overrideGinza) {
+			return
+		}
+		initializeGinzaSlayer(dialog, query);
+		const video = document.querySelector('.grid-area_\\[player\\] video');
+		video.addEventListener('play', () => {
+			if (!document.body.classList.contains('showNicoVideoPlayerDialog')) return;
+			if (/(^|[^\w])zenzaScreenMode_(small|sideView)([^\w]|$)/.test(document.body.className)) return;
+			video.pause();
+		});
+		video.pause();
+	};
+	const isWatchPage = async () => {
+		await uq.complete();
+		await util.sleep(200);
+		const ld = document.querySelectorAll('script[type="application/ld+json"]');
+		if (ld.length === 0) {
 			return false;
 		}
-		if (Config.props.overrideGinza && nicoUtil.isZenzaPlayableVideo()) {
-			return true;
+		for (const d of ld.values()) {
+			const json = JSON.parse(d.textContent);
+			if (json['@type'] === 'VideoObject') {
+				return true;
+			}
 		}
 		return false;
 	};
@@ -30791,9 +30781,7 @@ const replaceRedirectLinks = async () => {
 		replaceRedirectLinks();
 		const query = textUtil.parseQuery(START_PAGE_QUERY);
 		await uq.ready(); // DOMContentLoaded
-		const isWatch = util.isGinzaWatchUrl() &&
-			(!!document.getElementById('watchAPIDataContainer') ||
-				!!document.getElementById('js-initial-watch-data'));
+		const isWatch = util.isGinzaWatchUrl() && await isWatchPage();
 		if (typeof Config.props.commentLanguage === 'string') {
 			Config.props.commentLanguage = Config.props.commentLanguage.replace('_', '-').toLowerCase();
 		}
@@ -30807,12 +30795,7 @@ const replaceRedirectLinks = async () => {
 		const dialog = initializeDialogPlayer(Config);
 		hoverMenu.setPlayer(dialog);
 		if (isWatch) {
-			if (isOverrideGinza()) {
-				initializeGinzaSlayer(dialog, query);
-			}
-			if (window.name === 'watchGinza') {
-				window.name = '';
-			}
+			overrideGinza(dialog, query);
 		}
 		initializeMessage(dialog);
 		WatchPageHistory.initialize(dialog);
