@@ -41,9 +41,23 @@ const {initialize} = (() => {
       return;
     }
 
-    if (Config.props.overrideGinza) {
-      initializeGinzaSlayer(dialog, query);
+    if (!Config.props.overrideGinza) {
+      return
     }
+
+    initializeGinzaSlayer(dialog, query);
+
+    const video = document.querySelector('.grid-area_\\[player\\] video');
+
+    // 再生を無理やり止める
+    video.addEventListener('play', () => {
+      if (!document.body.classList.contains('showNicoVideoPlayerDialog')) return;
+
+      // 画面モードが横か小のときには止めない
+      if (/(^|[^\w])zenzaScreenMode_(small|sideView)([^\w]|$)/.test(document.body.className)) return;
+      video.pause();
+    });
+    video.pause();
   };
 
   const isWatchPage = async () => {
