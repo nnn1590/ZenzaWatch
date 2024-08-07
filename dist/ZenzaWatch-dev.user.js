@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.41
+// @version        2.6.3-fix-playlist.42
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.41';
+    var VER = '2.6.3-fix-playlist.42';
     const ENV = 'DEV';
 
 
@@ -2130,15 +2130,16 @@ const Fullscreen = {
 	_handleEvents() {
 		this._handleEvnets = _.noop;
 		const cl = ClassList(document.body);
-		const handle = () => {
+		const handle = (ev) => {
+			ev.stopImmediatePropagation();
 			const isFull = this.now();
 			cl.toggle('is-fullscreen', isFull);
 			global.emitter.emit('fullscreenStatusChange', isFull);
 		};
-		document.addEventListener('webkitfullscreenchange', handle, false);
-		document.addEventListener('mozfullscreenchange', handle, false);
-		document.addEventListener('MSFullscreenChange', handle, false);
-		document.addEventListener('fullscreenchange', handle, false);
+		document.addEventListener('webkitfullscreenchange', handle, true);
+		document.addEventListener('mozfullscreenchange', handle, true);
+		document.addEventListener('MSFullscreenChange', handle, true);
+		document.addEventListener('fullscreenchange', handle, true);
 	}
 };
 util.fullscreen = Fullscreen;
@@ -23569,7 +23570,7 @@ class NicoVideoPlayerDialogView extends Emitter {
 		document.documentElement.addEventListener('paste', this._onPaste.bind(this));
 		global.emitter.on('showMenu', () => this.addClass('menuOpen'));
 		global.emitter.on('hideMenu', () => this.removeClass('menuOpen'));
-		global.emitter.on('fullscreenStatusChange', () => this._applyScreenMode(true));
+		global.emitter.on('fullscreenStatusChange', () => this.isOpen && this._applyScreenMode(true));
 		document.body.append($dialog[0]);
 		this.emitResolve('dom-ready');
 	}
@@ -25558,11 +25559,11 @@ class NicoVideoPlayerDialog extends Emitter {
 			this._savePlaybackPosition(this._watchId, this.currentTime);
 		}
 		WatchInfoCacheDb.put(this._watchId, {currentTime: this.currentTime});
+		this.pause();
+		this.hide();
 		if (Fullscreen.now()) {
 			Fullscreen.cancel();
 		}
-		this.pause();
-		this.hide();
 		this._refresh();
 		this.emit('close');
 		global.emitter.emitAsync('DialogPlayerClose');
@@ -26810,6 +26811,7 @@ CommentInputPanel.__css__ = (`
 		width: 100%;
 		height: 30px !important;
 		font-size: 24px;
+		background: transparent;
 		border: none;
 		opacity: 0;
 		transition: opacity 0.3s ease, box-shadow 0.4s ease;
@@ -26817,11 +26819,6 @@ CommentInputPanel.__css__ = (`
 		line-height: 26px !important;
 		padding-right: 32px !important;
 		margin-bottom: 0 !important;
-	}
-	.commentInputPanel:not(:focus-within) .commentInput {
-		background: transparent;
-		color: initial;
-		text-shadow: 1px 0 2px hsl(0,0%,66%), 0 1px 2px hsl(0,0%,66%), 0 -1px 2px hsl(0,0%,66%), -1px 0 2px hsl(0,0%,66%);
 	}
 	.commentInputPanel:hover  .commentInput {
 		opacity: 0.5;
@@ -26834,7 +26831,13 @@ CommentInputPanel.__css__ = (`
 		box-sizing: border-box;
 		border: 1px solid #888;
 		border-radius: 8px;
+		background: #fff;
 		box-shadow: 0 0 8px #fff;
+		color: #000;
+	}
+	.commentInputPanel:focus-within :where(.commandInput, .commentSubmit) {
+		background: #fff;
+		color: #000;
 	}
 	.commentInputPanel .autoPauseLabel {
 		position: absolute;
@@ -30562,7 +30565,7 @@ class HoverMenu {
 		});
 	}
 }
-	const overrideGinza = (dialog, query) => {
+	const overrideGinza = async (dialog, query) => {
 		if (window.name === 'watchGinza') {
 			window.name = '';
 			return;
@@ -30571,24 +30574,47 @@ class HoverMenu {
 			return
 		}
 		initializeGinzaSlayer(dialog, query);
-		const video = document.querySelector('.grid-area_\\[player\\] video');
-		video.addEventListener('play', () => {
+		await uq.complete();
+		const stopPlayer = (ev) => {
 			if (!document.body.classList.contains('showNicoVideoPlayerDialog')) return;
 			if (/(^|[^\w])zenzaScreenMode_(small|sideView)([^\w]|$)/.test(document.body.className)) return;
+			ev.target.pause();
+		};
+		const video = document.querySelector('.grid-area_\\[player\\] video');
+		if (video !== null) {
+			video.addEventListener('play', stopPlayer);
 			video.pause();
+			return;
+		}
+		new MutationObserver((records, observer) => {
+			for (const record of records) {
+				if(record.addedNodes.length === 0) {
+					continue;
+				}
+				const video = record.target.querySelector('.grid-area_\\[player\\] video');
+				if (video === null) {
+					continue;
+				}
+				video.addEventListener('play', stopPlayer);
+				video.pause();
+				observer.disconnect();
+			}
+		}).observe(document.getElementById('root'), {
+			childList: true,
+			subtree: true,
 		});
-		video.pause();
 	};
-	const isWatchPage = async () => {
-		await uq.complete();
-		await util.sleep(200);
-		const ld = document.querySelectorAll('script[type="application/ld+json"]');
-		if (ld.length === 0) {
+	const isWatchPage = () => {
+		const res = document.querySelector('meta[name="server-response"]')?.getAttribute('content');
+		if (res === null) {
+			return !!document.querySelector('.grid-area_\\[player\\]');
+		}
+		const json = JSON.parse(res);
+		if (json.meta.status > 299) {
 			return false;
 		}
-		for (const d of ld.values()) {
-			const json = JSON.parse(d.textContent);
-			if (json['@type'] === 'VideoObject') {
+		for (const ld of json.data.metadata.jsonLds) {
+			if (ld['@type'] === 'VideoObject') {
 				return true;
 			}
 		}
@@ -30781,7 +30807,7 @@ const replaceRedirectLinks = async () => {
 		replaceRedirectLinks();
 		const query = textUtil.parseQuery(START_PAGE_QUERY);
 		await uq.ready(); // DOMContentLoaded
-		const isWatch = util.isGinzaWatchUrl() && await isWatchPage();
+		const isWatch = util.isGinzaWatchUrl() && isWatchPage();
 		if (typeof Config.props.commentLanguage === 'string') {
 			Config.props.commentLanguage = Config.props.commentLanguage.replace('_', '-').toLowerCase();
 		}
@@ -30795,7 +30821,7 @@ const replaceRedirectLinks = async () => {
 		const dialog = initializeDialogPlayer(Config);
 		hoverMenu.setPlayer(dialog);
 		if (isWatch) {
-			overrideGinza(dialog, query);
+			await overrideGinza(dialog, query);
 		}
 		initializeMessage(dialog);
 		WatchPageHistory.initialize(dialog);
