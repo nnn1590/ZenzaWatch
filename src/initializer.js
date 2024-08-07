@@ -34,7 +34,7 @@ const START_PAGE_QUERY = 'hoge=fuga';
 const {initialize} = (() => {
 //@require HoverMenu
   // GINZAを置き換えるべきか？の判定
-  const overrideGinza = (dialog, query) => {
+  const overrideGinza = async (dialog, query) => {
     // GINZAで視聴のリンクできた場合はスキップ
     if (window.name === 'watchGinza') {
       window.name = '';
@@ -47,34 +47,60 @@ const {initialize} = (() => {
 
     initializeGinzaSlayer(dialog, query);
 
-    const video = document.querySelector('.grid-area_\\[player\\] video');
+    await uq.complete();
 
     // 再生を無理やり止める
-    video.addEventListener('play', () => {
+    const stopPlayer = (ev) => {
       if (!document.body.classList.contains('showNicoVideoPlayerDialog')) return;
 
       // 画面モードが横か小のときには止めない
       if (/(^|[^\w])zenzaScreenMode_(small|sideView)([^\w]|$)/.test(document.body.className)) return;
+
+      ev.target.pause();
+    };
+    const video = document.querySelector('.grid-area_\\[player\\] video');
+    if (video !== null) {
+      video.addEventListener('play', stopPlayer);
       video.pause();
+      return;
+    }
+
+    new MutationObserver((records, observer) => {
+      for (const record of records) {
+        if(record.addedNodes.length === 0) {
+          continue;
+        }
+
+        const video = record.target.querySelector('.grid-area_\\[player\\] video');
+        if (video === null) {
+          continue;
+        }
+
+        video.addEventListener('play', stopPlayer);
+        video.pause();
+        observer.disconnect();
+      }
+    }).observe(document.getElementById('root'), {
+      childList: true,
+      subtree: true,
     });
-    video.pause();
   };
 
-  const isWatchPage = async () => {
-    await uq.complete();
+  const isWatchPage = () => {
+    const res = document.querySelector('meta[name="server-response"]')?.getAttribute('content');
 
-    // `document.readyState` が `"complete"` になってても `<script>` は取れないみたいなので一瞬待つ
-    await util.sleep(200);
+    if (res === null) {
+      return !!document.querySelector('.grid-area_\\[player\\]');
+    }
 
-    const ld = document.querySelectorAll('script[type="application/ld+json"]');
+    const json = JSON.parse(res);
 
-    if (ld.length === 0) {
+    if (json.meta.status > 299) {
       return false;
     }
 
-    for (const d of ld.values()) {
-      const json = JSON.parse(d.textContent);
-      if (json['@type'] === 'VideoObject') {
+    for (const ld of json.data.metadata.jsonLds) {
+      if (ld['@type'] === 'VideoObject') {
         return true;
       }
     }
@@ -110,7 +136,7 @@ const {initialize} = (() => {
     const query = textUtil.parseQuery(START_PAGE_QUERY);
 
     await uq.ready(); // DOMContentLoaded
-    const isWatch = util.isGinzaWatchUrl() && await isWatchPage();
+    const isWatch = util.isGinzaWatchUrl() && isWatchPage();
 
     const hoverMenu = global.debug.hoverMenu = new HoverMenu({playerConfig: Config});
 
@@ -124,7 +150,7 @@ const {initialize} = (() => {
     hoverMenu.setPlayer(dialog);
 
     if (isWatch) {
-      overrideGinza(dialog, query);
+      await overrideGinza(dialog, query);
     }
 
     initializeMessage(dialog);
