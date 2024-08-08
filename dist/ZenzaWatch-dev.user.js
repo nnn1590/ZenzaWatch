@@ -32,7 +32,7 @@
 // @exclude        *://ext.nicovideo.jp/thumb_channel/*
 // @grant          none
 // @author         segabito
-// @version        2.6.3-fix-playlist.42
+// @version        2.6.3-fix-playlist.43
 // @run-at         document-body
 // @require        https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js
 // @updateURL      https://github.com/kphrx/ZenzaWatch/raw/playlist-deploy/dist/ZenzaWatch-dev.user.js
@@ -101,7 +101,7 @@ AntiPrototypeJs();
     let {dimport, workerUtil, IndexedDbStorage, Handler, PromiseHandler, Emitter, parseThumbInfo, WatchInfoCacheDb, StoryboardCacheDb, VideoSessionWorker} = window.ZenzaLib;
     START_PAGE_QUERY = decodeURIComponent(START_PAGE_QUERY);
 
-    var VER = '2.6.3-fix-playlist.42';
+    var VER = '2.6.3-fix-playlist.43';
     const ENV = 'DEV';
 
 
@@ -1861,87 +1861,11 @@ const global = {
   NICORU,
   dll
 };
-class ClassListWrapper {
-	constructor(element) {
-		this.applyNow = this.apply.bind(this);
-		this.apply = throttle.raf(this.applyNow);
-		if (element) {
-			this.setElement(element);
-		} else {
-			this._next = new Set;
-			this._last = new Set;
-		}
-	}
-	setElement(element) {
-		if (this._element) {
-			this.applyNow();
-		}
-		this._element = element;
-		this._next = new Set(element.classList);
-		this._last = new Set(this._next);
-		return this;
-	}
-	add(...names) {
-		names = names.map(name => name.trim().split(/\s+/)).flat();
-		let changed = false;
-		for (const name of names) {
-			if (!this._next.has(name)) {
-				changed = true;
-				this._next.add(name);
-			}
-		}
-		changed && this.apply();
-		return this;
-	}
-	remove(...names) {
-		names = names.map(name => name.trim().split(/\s+/)).flat();
-		let changed = false;
-		for (const name of names) {
-			if (this._next.has(name)) {
-				changed = true;
-				this._next.delete(name);
-			}
-		}
-		changed && this.apply();
-		return this;
-	}
-	contains(name) {
-		return this._next.has(name);
-	}
-	toggle(name, v) {
-		if (v !== undefined) {
-			v = !!v;
-		} else {
-			v = !this.contains(name);
-		}
-		const names = name.trim().split(/\s+/);
-		v ? this.add(...names) : this.remove(...names);
-		return this;
-	}
-	apply() {
-		const last = [...this._last].sort().join(',');
-		const next = [...this._next].sort().join(',');
-		if (next === last) { return; }
-		const element = this._element;
-		const added = [], removed = [];
-		for (const name of this._next) {
-			if (!this._last.has(name)) { added.push(name); }
-		}
-		for (const name of this._last) {
-			if (!this._next.has(name)) { removed.push(name); }
-		}
-		if (removed.length) { element.classList.remove(...removed); }
-		if (added.length)   { element.classList.add(...added); }
-		this._last = this._next;
-		this._next = new Set(element.classList);
-		return this;
-	}
-}
 const ClassList = function(element) {
 	if (this.map.has(element)) {
 		return this.map.get(element);
 	}
-	const m = new ClassListWrapper(element);
+	const m = element.classList;
 	this.map.set(element, m);
 	return m;
 }.bind({map: new WeakMap()});
@@ -23570,7 +23494,7 @@ class NicoVideoPlayerDialogView extends Emitter {
 		document.documentElement.addEventListener('paste', this._onPaste.bind(this));
 		global.emitter.on('showMenu', () => this.addClass('menuOpen'));
 		global.emitter.on('hideMenu', () => this.removeClass('menuOpen'));
-		global.emitter.on('fullscreenStatusChange', () => this.isOpen && this._applyScreenMode(true));
+		global.emitter.on('fullscreenStatusChange', () => this._applyScreenMode(true));
 		document.body.append($dialog[0]);
 		this.emitResolve('dom-ready');
 	}
@@ -23829,7 +23753,7 @@ class NicoVideoPlayerDialogView extends Emitter {
 			screenMode: this._state.screenMode,
 			fullscreen: isFull ? 'yes' : 'no'
 		});
-		modes.forEach(m => this._$body.raf.toggleClass(m, m === screenMode && !isFull));
+		modes.forEach(m => this._$body.raf.toggleClass(m, m === screenMode && !isFull && this._state.isOpen));
 		this._updateScreenModeStyle();
 	}
 	_updateScreenModeStyle() {
@@ -25559,11 +25483,11 @@ class NicoVideoPlayerDialog extends Emitter {
 			this._savePlaybackPosition(this._watchId, this.currentTime);
 		}
 		WatchInfoCacheDb.put(this._watchId, {currentTime: this.currentTime});
-		this.pause();
-		this.hide();
 		if (Fullscreen.now()) {
 			Fullscreen.cancel();
 		}
+		this.pause();
+		this.hide();
 		this._refresh();
 		this.emit('close');
 		global.emitter.emitAsync('DialogPlayerClose');
@@ -30518,7 +30442,7 @@ class HoverMenu {
 			};
 			uq('body').on('mouseover', e => {
 					const target = e.target;
-					if (target.tagName !== 'A' || !target.closest('.NicorepoItem_video')) {
+					if (target.tagName !== 'A' || !target.closest('.TimelineItem_video')) {
 						return;
 					}
 					target.removeEventListener('click', blockNavigation);
@@ -30539,7 +30463,7 @@ class HoverMenu {
 			if (watchId.startsWith('lv')) {
 				return;
 			}
-			if (target.closest('.NicorepoItem_video')) {
+			if (target.closest('.TimelineItem_video')) {
 				e.stopPropagation();
 			}
 			e.preventDefault();
