@@ -46,7 +46,9 @@ const RootDispatcher = (() => {
           break;
         }
         case 'picture-in-picture':
-          document.querySelector('.zenzaWatchVideoElement').requestPictureInPicture();
+          documentPictureInPicture?.requestWindow().then(pipWindow => {
+            pipWindow.document.body.append(document.querySelector('.zenzaPlayerContainer'));
+          }) ?? document.querySelector('.zenzaWatchVideoElement').requestPictureInPicture();
           break;
         case 'toggle-comment':
         case 'toggle-showComment':
