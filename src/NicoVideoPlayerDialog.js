@@ -319,7 +319,7 @@ class NicoVideoPlayerDialogView extends Emitter {
 
     global.emitter.on('showMenu', () => this.addClass('menuOpen'));
     global.emitter.on('hideMenu', () => this.removeClass('menuOpen'));
-    global.emitter.on('fullscreenStatusChange', () => this.isOpen && this._applyScreenMode(true));
+    global.emitter.on('fullscreenStatusChange', () => this._applyScreenMode(true));
     document.body.append($dialog[0]);
     this.emitResolve('dom-ready');
   }
@@ -586,7 +586,7 @@ class NicoVideoPlayerDialogView extends Emitter {
       screenMode: this._state.screenMode,
       fullscreen: isFull ? 'yes' : 'no'
     });
-    modes.forEach(m => this._$body.raf.toggleClass(m, m === screenMode && !isFull));
+    modes.forEach(m => this._$body.raf.toggleClass(m, m === screenMode && !isFull && this._state.isOpen));
     this._updateScreenModeStyle();
   }
   _updateScreenModeStyle() {
@@ -2493,11 +2493,11 @@ class NicoVideoPlayerDialog extends Emitter {
       this._savePlaybackPosition(this._watchId, this.currentTime);
     }
     WatchInfoCacheDb.put(this._watchId, {currentTime: this.currentTime});
-    this.pause();
-    this.hide();
     if (Fullscreen.now()) {
       Fullscreen.cancel();
     }
+    this.pause();
+    this.hide();
     this._refresh();
     this.emit('close');
     global.emitter.emitAsync('DialogPlayerClose');
