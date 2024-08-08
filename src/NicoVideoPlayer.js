@@ -411,7 +411,7 @@ class ContextMenu extends BaseViewComponent {
     const onMouseDown = this._bound.onMouseDown = this._onMouseDown.bind(this);
     this._bound.onBodyMouseUp = this._onBodyMouseUp.bind(this);
     this._bound.onRepeat = this._onRepeat.bind(this);
-    this._view.classList.toggle('is-pictureInPictureEnabled', document.pictureInPictureEnabled);
+    this._view.classList.toggle('is-pictureInPictureEnabled', document.pictureInPictureEnabled ?? false);
     this._view.addEventListener('mousedown', onMouseDown);
     this._isFirstShow = true;
     this._view.addEventListener('contextmenu', (e) => {
