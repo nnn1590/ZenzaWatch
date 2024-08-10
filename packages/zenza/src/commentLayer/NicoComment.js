@@ -292,7 +292,7 @@ class NicoComment extends Emitter {
   }
   removeChat(nicoChat) {
     let group;
-    switch (type) {
+    switch (nicoChat.type) {
       case NicoChat.TYPE.TOP:
         group = this.topGroup;
         break;

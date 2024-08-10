@@ -2686,19 +2686,19 @@ class NicoVideoPlayerDialog extends Emitter {
       return;
     }
 
-    window.console.time('コメント投稿');
+    window.console.time('コメント削除');
 
     const msgInfo = this._videoInfo.msgInfo;
     return this.threadLoader.deleteChat(msgInfo, chat)
       .then(result => {
-        window.console.timeEnd('コメント投稿');
-        this.execCommand('notify', 'コメント投稿成功');
+        window.console.timeEnd('コメント削除');
+        this.execCommand('notify', 'コメント削除成功');
         this._nicoVideoPlayer.removeChat(chat);
       })
       .catch(err => {
         err = err || {};
         window.console.log('_onFail: ', err);
-        window.console.timeEnd('コメント投稿');
+        window.console.timeEnd('コメント削除');
         this.execCommand('alert', err.message);
       });
   }
