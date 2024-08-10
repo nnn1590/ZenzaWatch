@@ -883,13 +883,14 @@ const CommentListItemView = (() => {
         padding: 0 8px;
       }
 
+      /* 自分の投稿をNGに突っ込む奴いるのかな？とは思いつつ残す。どっかで消すかなんかしたい
       .listMenu[data-is-mine="true"] .addWordFilter {
         display: none;
       }
 
       .listMenu[data-is-mine="true"] .addUserIdFilter {
         display: none;
-      }
+      }*/
 
       .listMenu:not([data-is-mine="true"]) .removeComment {
         display: none;
