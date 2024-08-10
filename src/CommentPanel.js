@@ -1622,7 +1622,7 @@ class CommentPanel extends Emitter {
         break;
       case 'removeComment':
         this._model.removeItem(item);
-        this.emit('command', 'notify', '削除');
+        this.emit('command', command, item);
         break;
       case 'addUserIdFilter':
         this._model.removeItem(item);

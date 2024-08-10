@@ -1498,6 +1498,9 @@ class NicoVideoPlayerDialog extends Emitter {
       case 'setCommandFilterList':
         this._nicoVideoPlayer.filter.commandFilterList = param;
         break;
+      case 'removeComment':
+        this.removeChat(param);
+        break;
       case 'openNow':
         this.open(param, {openNow: true});
         break;
@@ -2671,6 +2674,32 @@ class NicoVideoPlayerDialog extends Emitter {
     const msgInfo = this._videoInfo.msgInfo;
     return this.threadLoader.postChat(msgInfo, text, cmd, vpos, lang)
       .then(onSuccess).catch(onFail);
+  }
+  removeChat(chat) {
+    if (!this._nicoVideoPlayer ||
+      !this.threadLoader ||
+      !this._state.isCommentReady) {
+      return;
+    }
+    if (!util.isLogin()) {
+      return;
+    }
+
+    window.console.time('コメント投稿');
+
+    const msgInfo = this._videoInfo.msgInfo;
+    this.threadLoader.deleteChat(msgInfo, chat)
+      .then(result => {
+        window.console.timeEnd('コメント投稿');
+        this.execCommand('notify', 'コメント投稿成功');
+        this._nicoVideoPlayer.removeChat(chat);
+      })
+      .catch(err => {
+        err = err || {};
+        window.console.log('_onFail: ', err);
+        window.console.timeEnd('コメント投稿');
+        this.execCommand('alert', err.message);
+      });
   }
   get duration() {
     if (!this._videoInfo) {
