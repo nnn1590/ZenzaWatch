@@ -310,6 +310,10 @@ const {ThreadLoader} = (() => {
       console.log('put packet: ', packet);
       try {
         await this._delete(url, packet);
+        return {
+          status: 'ok',
+          message: 'コメント削除成功'
+        };
       } catch (error) {
         const { result: { status: statusCode, errorCode } } = error;
         throw {
@@ -318,7 +322,6 @@ const {ThreadLoader} = (() => {
           message: errorCode ? `コメント削除失敗 ${errorCode}` : 'コメント削除失敗'
         };
       }
-      return result;
     }
 
     async getNicoruKey(threadId, options = {}) {
@@ -360,7 +363,13 @@ const {ThreadLoader} = (() => {
       });
       console.log('post packet: ', packet);
       try {
-        return await this._post(url, packet); // { nicoruId, nicoruCount }
+        const { nicoruId, nicoruCount } = await this._post(url, packet);
+        return {
+          status: 'ok',
+          id: nicoruId,
+          count: nicoruCount,
+          message: 'ニコれた'
+        };
       } catch (error) {
         const { result: { status: statusCode, errorCode } } = error;
         throw {
@@ -369,7 +378,6 @@ const {ThreadLoader} = (() => {
           message: errorCode ? `ニコれなかった＞＜ ${errorCode}` : 'ニコれなかった＞＜'
         };
       }
-      return result;
     }
   }
 
