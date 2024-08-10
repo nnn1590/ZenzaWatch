@@ -1621,8 +1621,8 @@ class CommentPanel extends Emitter {
         this.emit('command', 'notify', 'クリップボードにコピーしました');
         break;
       case 'removeComment':
-        this._model.removeItem(item);
-        this.emit('command', command, item);
+        (new Promise((resolve, reject) => this.emit('deleteChat', {resolve, reject}, item)))
+          .then(() => this._model.removeItem(item));
         break;
       case 'addUserIdFilter':
         this._model.removeItem(item);

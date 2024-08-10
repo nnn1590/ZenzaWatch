@@ -1498,9 +1498,6 @@ class NicoVideoPlayerDialog extends Emitter {
       case 'setCommandFilterList':
         this._nicoVideoPlayer.filter.commandFilterList = param;
         break;
-      case 'removeComment':
-        this.removeChat(param);
-        break;
       case 'openNow':
         this.open(param, {openNow: true});
         break;
@@ -2554,6 +2551,10 @@ class NicoVideoPlayerDialog extends Emitter {
       language: this._playerConfig.props.commentLanguage
     });
     this._commentPanel.on('command', this._onCommand.bind(this));
+    this._commentPanel.on('deleteChat', (e, chat) => {
+      this.removeChat(chat)
+        .then(() => e.resolve());
+    });
     this._commentPanel.on('update', _.debounce(this._onCommentPanelStatusUpdate.bind(this), 100));
     this.emitResolve('commentpanel-ready');
   }
@@ -2688,7 +2689,7 @@ class NicoVideoPlayerDialog extends Emitter {
     window.console.time('コメント投稿');
 
     const msgInfo = this._videoInfo.msgInfo;
-    this.threadLoader.deleteChat(msgInfo, chat)
+    return this.threadLoader.deleteChat(msgInfo, chat)
       .then(result => {
         window.console.timeEnd('コメント投稿');
         this.execCommand('notify', 'コメント投稿成功');
