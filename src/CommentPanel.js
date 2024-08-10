@@ -842,27 +842,30 @@ const CommentListItemView = (() => {
 
       .listMenu {
         position: absolute;
-        display: block;
+        width: 100%;
+        right: 0;
+        z-index: 100;
+
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-inline: 8px;
       }
 
-      .listMenu.show {
-        display: block;
-        width: 100%;
-        left: 0;
-        z-index: 100;
+      .listMenu:not(.show) {
+        display: none;
       }
 
       .listMenu  .menuButton {
-        display: inline-block;
-        position: absolute;
         font-size: 13px;
         line-height: 20px;
         border: 1px solid #666;
         color: #fff;
         background: #666;
         cursor: pointer;
-        top: 0;
         text-align: center;
+        width: 48px;
       }
 
       .listMenu .menuButton:hover {
@@ -880,36 +883,16 @@ const CommentListItemView = (() => {
         padding: 0 8px;
       }
 
-      .listMenu[data-is-mine="true"] .itemDetailRequest {
-        right: 232px;
+      .listMenu[data-is-mine="true"] .addWordFilter {
+        display: none;
       }
 
-      .listMenu:not([data-is-mine="true"]) .itemDetailRequest {
-        right: 176px;
-      }
-
-      .listMenu .removeComment {
-        right: 176px;
-        width: 48px;
+      .listMenu[data-is-mine="true"] .addUserIdFilter {
+        display: none;
       }
 
       .listMenu:not([data-is-mine="true"]) .removeComment {
         display: none;
-      }
-
-      .listMenu .clipBoard {
-        right: 120px;
-        width: 48px;
-      }
-
-      .listMenu .addWordFilter {
-        right: 64px;
-        width: 48px;
-      }
-
-      .listMenu .addUserIdFilter {
-        right: 8px;
-        width: 48px;
       }
 
       .commentListItem {
