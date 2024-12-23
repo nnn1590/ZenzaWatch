@@ -942,7 +942,6 @@ const CommentListItemView = (() => {
       }
       .commentListItem .nicoru-icon {
         position: absolute;
-        pointer-events: none;
         display: inline-block;
         cursor: pointer;
         visibility: hidden;
